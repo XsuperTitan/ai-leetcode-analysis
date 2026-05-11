@@ -2,19 +2,19 @@
   <section class="card">
     <h2>LeetCode Analyze</h2>
     <div class="row">
-      <input v-model="form.title" placeholder="Title" />
-      <select v-model="form.language">
+      <input v-model="title" placeholder="Title" />
+      <select v-model="language">
         <option value="java">Java</option>
         <option value="python">Python</option>
         <option value="javascript">JavaScript</option>
       </select>
-      <select v-model="form.difficulty">
+      <select v-model="difficulty">
         <option value="easy">Easy</option>
         <option value="medium">Medium</option>
         <option value="hard">Hard</option>
       </select>
     </div>
-    <textarea v-model="form.description" placeholder="Problem description (optional, title-only is supported)"></textarea>
+    <textarea v-model="description" placeholder="Problem description (optional, title-only is supported)"></textarea>
     <div class="row">
       <input v-model="constraintsInput" placeholder="Constraints separated by ;" />
       <button @click="submit" :disabled="loading">{{ loading ? "Analyzing..." : "Analyze" }}</button>
@@ -66,30 +66,27 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { ref, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { analyzeLeetcode, downloadLeetcodeMarkdown, getLeetcodeAnalysis, listLeetcode } from "../api/client";
 import { useAppStore } from "../stores/app";
-import type { LeetcodeAnalysisItem } from "../types/api";
+import { useLeetcodeStore } from "../stores/leetcode";
 
 const appStore = useAppStore();
+const leetcodeStore = useLeetcodeStore();
+const { title, description, language, difficulty, constraintsInput, result, history } = storeToRefs(leetcodeStore);
 const loading = ref(false);
-const result = ref<LeetcodeAnalysisItem | null>(null);
-const history = ref<LeetcodeAnalysisItem[]>([]);
-const constraintsInput = ref("");
 const validationMessage = ref("");
 const errorMessage = ref("");
 
-const form = reactive({
-  title: "",
-  description: "",
-  language: "java",
-  difficulty: "easy"
+watch([title, description, language, difficulty, constraintsInput], () => {
+  leetcodeStore.persist();
 });
 
 async function submit() {
   validationMessage.value = "";
   errorMessage.value = "";
-  if (!form.title.trim()) {
+  if (!title.value.trim()) {
     validationMessage.value = "Please enter problem title.";
     return;
   }
@@ -103,12 +100,13 @@ async function submit() {
 
     result.value = await analyzeLeetcode({
       appId: appStore.appId,
-      title: form.title,
-      description: form.description,
+      title: title.value,
+      description: description.value,
       constraints,
-      language: form.language,
-      difficulty: form.difficulty
+      language: language.value,
+      difficulty: difficulty.value
     });
+    leetcodeStore.setResult(result.value);
     await loadHistory();
   } catch (error: unknown) {
     errorMessage.value = extractErrorMessage(error);
@@ -118,13 +116,15 @@ async function submit() {
 }
 
 async function loadHistory() {
-  history.value = await listLeetcode();
+  const list = await listLeetcode();
+  leetcodeStore.setHistory(list);
 }
 
 async function openHistory(analysisId: string) {
   errorMessage.value = "";
   try {
-    result.value = await getLeetcodeAnalysis(analysisId);
+    const detail = await getLeetcodeAnalysis(analysisId);
+    leetcodeStore.setResult(detail);
   } catch (error: unknown) {
     errorMessage.value = extractErrorMessage(error);
   }
@@ -153,7 +153,9 @@ async function downloadMarkdown(analysisId: string) {
   }
 }
 
-void loadHistory();
+if (history.value.length === 0) {
+  void loadHistory();
+}
 
 function extractErrorMessage(error: unknown): string {
   const maybeAxios = error as {

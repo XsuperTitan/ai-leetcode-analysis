@@ -75,10 +75,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { createDiagram, listDiagrams } from "../api/client";
 import { useAppStore } from "../stores/app";
-import type { DiagramEdge, DiagramNode, SystemDesignDiagram } from "../types/api";
+import { useSystemDesignStore } from "../stores/systemDesign";
+import type { SystemDesignDiagram } from "../types/api";
 
 const NODE_WIDTH = 150;
 const NODE_HEIGHT = 64;
@@ -86,20 +88,18 @@ const CANVAS_WIDTH = 980;
 const CANVAS_HEIGHT = 520;
 
 const appStore = useAppStore();
-const title = ref("Sample Architecture");
-const nodes = ref<DiagramNode[]>([]);
-const edges = ref<DiagramEdge[]>([]);
-const diagrams = ref<SystemDesignDiagram[]>([]);
+const systemDesignStore = useSystemDesignStore();
+const { title, nodes, edges, diagrams, newNodeType, edgeSourceId, edgeTargetId, edgeLabel } = storeToRefs(systemDesignStore);
 const errorMessage = ref("");
-const newNodeType = ref("service");
-const edgeSourceId = ref("");
-const edgeTargetId = ref("");
-const edgeLabel = ref("HTTP");
 const canvasRef = ref<HTMLElement | null>(null);
 
 const draggingNodeId = ref<string | null>(null);
 const dragOffsetX = ref(0);
 const dragOffsetY = ref(0);
+
+watch([title, newNodeType, edgeSourceId, edgeTargetId, edgeLabel], () => {
+  systemDesignStore.persist();
+});
 
 const renderedEdges = computed(() => {
   return edges.value
@@ -130,6 +130,7 @@ function addNode() {
     x: 80 + (nodes.value.length % 4) * 200,
     y: 80 + Math.floor(nodes.value.length / 4) * 120
   });
+  systemDesignStore.persist();
 }
 
 function addEdge() {
@@ -148,6 +149,7 @@ function addEdge() {
     target: edgeTargetId.value,
     label: edgeLabel.value || "link"
   });
+  systemDesignStore.persist();
 }
 
 async function saveDiagram() {
@@ -165,20 +167,20 @@ async function saveDiagram() {
     canvasMeta: { zoom: 1, version: "1.0" }
   });
   await loadDiagrams();
+  systemDesignStore.persist();
 }
 
 async function loadDiagrams() {
   try {
-    diagrams.value = await listDiagrams();
+    const list = await listDiagrams();
+    systemDesignStore.setDiagrams(list);
   } catch (error: unknown) {
     errorMessage.value = extractErrorMessage(error);
   }
 }
 
 function useDiagram(item: SystemDesignDiagram) {
-  title.value = item.title;
-  nodes.value = [...item.nodes];
-  edges.value = [...item.edges];
+  systemDesignStore.setCanvasData(item.title, [...item.nodes], [...item.edges]);
 }
 
 function startDrag(event: MouseEvent, nodeId: string) {
@@ -209,6 +211,9 @@ function onMouseMove(event: MouseEvent) {
 }
 
 function onMouseUp() {
+  if (draggingNodeId.value) {
+    systemDesignStore.persist();
+  }
   draggingNodeId.value = null;
 }
 
@@ -224,7 +229,9 @@ function extractErrorMessage(error: unknown): string {
   return maybeAxios.response?.data?.message || maybeAxios.message || "Request failed";
 }
 
-void loadDiagrams();
+if (diagrams.value.length === 0) {
+  void loadDiagrams();
+}
 window.addEventListener("mousemove", onMouseMove);
 window.addEventListener("mouseup", onMouseUp);
 

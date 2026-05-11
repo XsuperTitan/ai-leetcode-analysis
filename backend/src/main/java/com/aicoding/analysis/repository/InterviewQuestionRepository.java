@@ -58,18 +58,23 @@ public class InterviewQuestionRepository {
     }
 
     public void addFavorite(String questionId) {
+        Integer exists = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM interview_question_item WHERE question_id = ?",
+                Integer.class,
+                questionId
+        );
+        if (exists == null || exists == 0) {
+            throw new IllegalArgumentException("questionId not found");
+        }
+
         String sql = """
-                INSERT INTO question_favorite (app_id, question_id, created_at)
+                INSERT IGNORE INTO question_favorite (app_id, question_id, created_at)
                 SELECT app_id, question_id, ?
                 FROM interview_question_item
                 WHERE question_id = ?
                 LIMIT 1
-                ON DUPLICATE KEY UPDATE created_at = created_at
                 """;
-        int updated = jdbcTemplate.update(sql, Timestamp.from(Instant.now()), questionId);
-        if (updated == 0) {
-            throw new IllegalArgumentException("questionId not found");
-        }
+        jdbcTemplate.update(sql, Timestamp.from(Instant.now()), questionId);
     }
 
     public void removeFavorite(String questionId) {

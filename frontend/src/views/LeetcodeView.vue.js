@@ -1,23 +1,21 @@
-import { reactive, ref } from "vue";
+import { ref, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { analyzeLeetcode, downloadLeetcodeMarkdown, getLeetcodeAnalysis, listLeetcode } from "../api/client";
 import { useAppStore } from "../stores/app";
+import { useLeetcodeStore } from "../stores/leetcode";
 const appStore = useAppStore();
+const leetcodeStore = useLeetcodeStore();
+const { title, description, language, difficulty, constraintsInput, result, history } = storeToRefs(leetcodeStore);
 const loading = ref(false);
-const result = ref(null);
-const history = ref([]);
-const constraintsInput = ref("");
 const validationMessage = ref("");
 const errorMessage = ref("");
-const form = reactive({
-    title: "",
-    description: "",
-    language: "java",
-    difficulty: "easy"
+watch([title, description, language, difficulty, constraintsInput], () => {
+    leetcodeStore.persist();
 });
 async function submit() {
     validationMessage.value = "";
     errorMessage.value = "";
-    if (!form.title.trim()) {
+    if (!title.value.trim()) {
         validationMessage.value = "Please enter problem title.";
         return;
     }
@@ -29,12 +27,13 @@ async function submit() {
             .filter((item) => item.length > 0);
         result.value = await analyzeLeetcode({
             appId: appStore.appId,
-            title: form.title,
-            description: form.description,
+            title: title.value,
+            description: description.value,
             constraints,
-            language: form.language,
-            difficulty: form.difficulty
+            language: language.value,
+            difficulty: difficulty.value
         });
+        leetcodeStore.setResult(result.value);
         await loadHistory();
     }
     catch (error) {
@@ -45,12 +44,14 @@ async function submit() {
     }
 }
 async function loadHistory() {
-    history.value = await listLeetcode();
+    const list = await listLeetcode();
+    leetcodeStore.setHistory(list);
 }
 async function openHistory(analysisId) {
     errorMessage.value = "";
     try {
-        result.value = await getLeetcodeAnalysis(analysisId);
+        const detail = await getLeetcodeAnalysis(analysisId);
+        leetcodeStore.setResult(detail);
     }
     catch (error) {
         errorMessage.value = extractErrorMessage(error);
@@ -79,7 +80,9 @@ async function downloadMarkdown(analysisId) {
         errorMessage.value = extractErrorMessage(error);
     }
 }
-void loadHistory();
+if (history.value.length === 0) {
+    void loadHistory();
+}
 function extractErrorMessage(error) {
     const maybeAxios = error;
     return maybeAxios.response?.data?.message || maybeAxios.message || "Analyze failed";
@@ -98,9 +101,9 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
     placeholder: "Title",
 });
-(__VLS_ctx.form.title);
+(__VLS_ctx.title);
 __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-    value: (__VLS_ctx.form.language),
+    value: (__VLS_ctx.language),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
     value: "java",
@@ -112,7 +115,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElement
     value: "javascript",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-    value: (__VLS_ctx.form.difficulty),
+    value: (__VLS_ctx.difficulty),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
     value: "easy",
@@ -124,7 +127,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElement
     value: "hard",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.textarea, __VLS_intrinsicElements.textarea)({
-    value: (__VLS_ctx.form.description),
+    value: (__VLS_ctx.description),
     placeholder: "Problem description (optional, title-only is supported)",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -259,13 +262,16 @@ var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
-            loading: loading,
+            title: title,
+            description: description,
+            language: language,
+            difficulty: difficulty,
+            constraintsInput: constraintsInput,
             result: result,
             history: history,
-            constraintsInput: constraintsInput,
+            loading: loading,
             validationMessage: validationMessage,
             errorMessage: errorMessage,
-            form: form,
             submit: submit,
             loadHistory: loadHistory,
             openHistory: openHistory,

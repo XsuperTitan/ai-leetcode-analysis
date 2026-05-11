@@ -16,6 +16,7 @@
       </select>
       <button @click="search" :disabled="loading">{{ loading ? "Loading..." : "Search" }}</button>
     </div>
+    <p v-if="errorMessage" style="color: #dc2626; margin: 0;">{{ errorMessage }}</p>
   </section>
 
   <section class="card">
@@ -34,20 +35,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { addFavorite, removeFavorite, searchInterviewQuestions } from "../api/client";
 import { useAppStore } from "../stores/app";
-import type { InterviewQuestionItem } from "../types/api";
+import { useInterviewStore } from "../stores/interview";
 
 const appStore = useAppStore();
-const keyword = ref("spring transaction");
-const category = ref("backend");
-const level = ref("middle");
+const interviewStore = useInterviewStore();
+const { keyword, category, level, result } = storeToRefs(interviewStore);
 const loading = ref(false);
-const result = ref<InterviewQuestionItem[]>([]);
+const errorMessage = ref("");
+
+watch([keyword, category, level], () => {
+  interviewStore.persist();
+});
 
 async function search() {
   loading.value = true;
+  errorMessage.value = "";
   try {
     const resp = await searchInterviewQuestions({
       appId: appStore.appId,
@@ -56,19 +62,39 @@ async function search() {
       level: level.value,
       count: 8
     });
-    result.value = resp.items;
+    interviewStore.setResult(resp.items);
+  } catch (error: unknown) {
+    errorMessage.value = extractErrorMessage(error);
   } finally {
     loading.value = false;
   }
 }
 
 async function saveFavorite(questionId: string) {
-  await addFavorite(questionId);
-  result.value = result.value.map((item) => item.questionId === questionId ? { ...item, isFavorite: true } : item);
+  errorMessage.value = "";
+  try {
+    await addFavorite(questionId);
+    interviewStore.updateFavorite(questionId, true);
+  } catch (error: unknown) {
+    errorMessage.value = extractErrorMessage(error);
+  }
 }
 
 async function cancelFavorite(questionId: string) {
-  await removeFavorite(questionId);
-  result.value = result.value.map((item) => item.questionId === questionId ? { ...item, isFavorite: false } : item);
+  errorMessage.value = "";
+  try {
+    await removeFavorite(questionId);
+    interviewStore.updateFavorite(questionId, false);
+  } catch (error: unknown) {
+    errorMessage.value = extractErrorMessage(error);
+  }
+}
+
+function extractErrorMessage(error: unknown): string {
+  const maybeAxios = error as {
+    response?: { data?: { message?: string } };
+    message?: string;
+  };
+  return maybeAxios.response?.data?.message || maybeAxios.message || "Request failed";
 }
 </script>

@@ -1,14 +1,19 @@
-import { ref } from "vue";
+import { ref, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { addFavorite, removeFavorite, searchInterviewQuestions } from "../api/client";
 import { useAppStore } from "../stores/app";
+import { useInterviewStore } from "../stores/interview";
 const appStore = useAppStore();
-const keyword = ref("spring transaction");
-const category = ref("backend");
-const level = ref("middle");
+const interviewStore = useInterviewStore();
+const { keyword, category, level, result } = storeToRefs(interviewStore);
 const loading = ref(false);
-const result = ref([]);
+const errorMessage = ref("");
+watch([keyword, category, level], () => {
+    interviewStore.persist();
+});
 async function search() {
     loading.value = true;
+    errorMessage.value = "";
     try {
         const resp = await searchInterviewQuestions({
             appId: appStore.appId,
@@ -17,19 +22,38 @@ async function search() {
             level: level.value,
             count: 8
         });
-        result.value = resp.items;
+        interviewStore.setResult(resp.items);
+    }
+    catch (error) {
+        errorMessage.value = extractErrorMessage(error);
     }
     finally {
         loading.value = false;
     }
 }
 async function saveFavorite(questionId) {
-    await addFavorite(questionId);
-    result.value = result.value.map((item) => item.questionId === questionId ? { ...item, isFavorite: true } : item);
+    errorMessage.value = "";
+    try {
+        await addFavorite(questionId);
+        interviewStore.updateFavorite(questionId, true);
+    }
+    catch (error) {
+        errorMessage.value = extractErrorMessage(error);
+    }
 }
 async function cancelFavorite(questionId) {
-    await removeFavorite(questionId);
-    result.value = result.value.map((item) => item.questionId === questionId ? { ...item, isFavorite: false } : item);
+    errorMessage.value = "";
+    try {
+        await removeFavorite(questionId);
+        interviewStore.updateFavorite(questionId, false);
+    }
+    catch (error) {
+        errorMessage.value = extractErrorMessage(error);
+    }
+}
+function extractErrorMessage(error) {
+    const maybeAxios = error;
+    return maybeAxios.response?.data?.message || maybeAxios.message || "Request failed";
 }
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
@@ -78,6 +102,12 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     disabled: (__VLS_ctx.loading),
 });
 (__VLS_ctx.loading ? "Loading..." : "Search");
+if (__VLS_ctx.errorMessage) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+        ...{ style: {} },
+    });
+    (__VLS_ctx.errorMessage);
+}
 __VLS_asFunctionalElement(__VLS_intrinsicElements.section, __VLS_intrinsicElements.section)({
     ...{ class: "card" },
 });
@@ -128,8 +158,9 @@ const __VLS_self = (await import('vue')).defineComponent({
             keyword: keyword,
             category: category,
             level: level,
-            loading: loading,
             result: result,
+            loading: loading,
+            errorMessage: errorMessage,
             search: search,
             saveFavorite: saveFavorite,
             cancelFavorite: cancelFavorite,

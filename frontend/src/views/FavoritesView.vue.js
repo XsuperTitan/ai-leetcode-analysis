@@ -1,12 +1,26 @@
 import { ref } from "vue";
 import { getFavorites } from "../api/client";
 import { useAppStore } from "../stores/app";
+import { useInterviewStore } from "../stores/interview";
 const appStore = useAppStore();
+const interviewStore = useInterviewStore();
 const items = ref([]);
+const errorMessage = ref("");
 async function load() {
-    items.value = await getFavorites(appStore.appId);
+    errorMessage.value = "";
+    try {
+        items.value = await getFavorites(appStore.appId);
+        interviewStore.syncFavorites(items.value.map((item) => item.questionId));
+    }
+    catch (error) {
+        errorMessage.value = extractErrorMessage(error);
+    }
 }
 void load();
+function extractErrorMessage(error) {
+    const maybeAxios = error;
+    return maybeAxios.response?.data?.message || maybeAxios.message || "Request failed";
+}
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
 let __VLS_components;
@@ -18,6 +32,12 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (__VLS_ctx.load) },
 });
+if (__VLS_ctx.errorMessage) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+        ...{ style: {} },
+    });
+    (__VLS_ctx.errorMessage);
+}
 __VLS_asFunctionalElement(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({});
 for (const [item] of __VLS_getVForSourceType((__VLS_ctx.items))) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
@@ -40,6 +60,7 @@ const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
             items: items,
+            errorMessage: errorMessage,
             load: load,
         };
     },
