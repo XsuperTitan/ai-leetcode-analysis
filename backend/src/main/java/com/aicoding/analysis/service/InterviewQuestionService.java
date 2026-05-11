@@ -3,6 +3,7 @@ package com.aicoding.analysis.service;
 import com.aicoding.analysis.model.interview.InterviewQuestionItem;
 import com.aicoding.analysis.model.interview.InterviewSearchRequest;
 import com.aicoding.analysis.model.interview.InterviewSearchResult;
+import com.aicoding.analysis.repository.InterviewQuestionRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
@@ -12,8 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 @Service
 public class InterviewQuestionService {
@@ -28,12 +27,16 @@ public class InterviewQuestionService {
 
     private final DeepseekChatService deepseekChatService;
     private final ObjectMapper objectMapper;
-    private final List<InterviewQuestionItem> latestGenerated = new CopyOnWriteArrayList<>();
-    private final Set<String> favorites = ConcurrentHashMap.newKeySet();
+    private final InterviewQuestionRepository interviewQuestionRepository;
 
-    public InterviewQuestionService(DeepseekChatService deepseekChatService, ObjectMapper objectMapper) {
+    public InterviewQuestionService(
+            DeepseekChatService deepseekChatService,
+            ObjectMapper objectMapper,
+            InterviewQuestionRepository interviewQuestionRepository
+    ) {
         this.deepseekChatService = deepseekChatService;
         this.objectMapper = objectMapper;
+        this.interviewQuestionRepository = interviewQuestionRepository;
     }
 
     public InterviewSearchResult search(InterviewSearchRequest request) {
@@ -66,40 +69,30 @@ public class InterviewQuestionService {
                     ));
                 }
             }
-            latestGenerated.clear();
-            latestGenerated.addAll(items);
-            return new InterviewSearchResult(queryId, markFavorite(items));
+            interviewQuestionRepository.saveAll(items, request.category(), request.level());
+            return new InterviewSearchResult(queryId, markFavorite(request.appId(), items));
         } catch (Exception ex) {
             throw new IllegalStateException("Failed to parse interview questions: " + ex.getMessage(), ex);
         }
     }
 
     public void addFavorite(String questionId) {
-        favorites.add(questionId);
+        interviewQuestionRepository.addFavorite(questionId);
     }
 
     public void removeFavorite(String questionId) {
-        favorites.remove(questionId);
+        interviewQuestionRepository.removeFavorite(questionId);
     }
 
     public List<InterviewQuestionItem> favorites(String appId) {
-        return latestGenerated.stream()
-                .filter(item -> item.appId().equals(appId))
-                .filter(item -> favorites.contains(item.questionId()))
-                .map(item -> new InterviewQuestionItem(
-                        item.questionId(),
-                        item.queryId(),
-                        item.appId(),
-                        item.question(),
-                        item.answerHints(),
-                        item.tags(),
-                        true,
-                        item.createdAt()
-                ))
-                .toList();
+        return interviewQuestionRepository.listFavorites(appId);
     }
 
-    private List<InterviewQuestionItem> markFavorite(List<InterviewQuestionItem> items) {
+    private List<InterviewQuestionItem> markFavorite(String appId, List<InterviewQuestionItem> items) {
+        Set<String> favoriteQuestionIds = interviewQuestionRepository.findFavoriteQuestionIds(
+                appId,
+                items.stream().map(InterviewQuestionItem::questionId).toList()
+        );
         return items.stream()
                 .map(item -> new InterviewQuestionItem(
                         item.questionId(),
@@ -108,7 +101,7 @@ public class InterviewQuestionService {
                         item.question(),
                         item.answerHints(),
                         item.tags(),
-                        favorites.contains(item.questionId()),
+                        favoriteQuestionIds.contains(item.questionId()),
                         item.createdAt()
                 ))
                 .toList();

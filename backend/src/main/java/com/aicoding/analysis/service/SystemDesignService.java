@@ -2,17 +2,21 @@ package com.aicoding.analysis.service;
 
 import com.aicoding.analysis.model.systemdesign.DiagramUpsertRequest;
 import com.aicoding.analysis.model.systemdesign.SystemDesignDiagram;
+import com.aicoding.analysis.repository.SystemDesignDiagramRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 @Service
 public class SystemDesignService {
 
-    private final List<SystemDesignDiagram> store = new CopyOnWriteArrayList<>();
+    private final SystemDesignDiagramRepository systemDesignDiagramRepository;
+
+    public SystemDesignService(SystemDesignDiagramRepository systemDesignDiagramRepository) {
+        this.systemDesignDiagramRepository = systemDesignDiagramRepository;
+    }
 
     public SystemDesignDiagram create(DiagramUpsertRequest request) {
         SystemDesignDiagram created = new SystemDesignDiagram(
@@ -26,7 +30,7 @@ public class SystemDesignService {
                 Instant.now(),
                 Instant.now()
         );
-        store.add(0, created);
+        systemDesignDiagramRepository.save(created);
         return created;
     }
 
@@ -43,24 +47,16 @@ public class SystemDesignService {
                 existing.createdAt(),
                 Instant.now()
         );
-        store.removeIf(item -> item.diagramId().equals(diagramId));
-        store.add(0, updated);
+        systemDesignDiagramRepository.update(updated);
         return updated;
     }
 
     public SystemDesignDiagram getById(String diagramId) {
-        return store.stream()
-                .filter(item -> item.diagramId().equals(diagramId))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Diagram not found"));
+        return systemDesignDiagramRepository.getByDiagramId(diagramId);
     }
 
     public List<SystemDesignDiagram> list(String keyword, int page, int size) {
-        return store.stream()
-                .filter(item -> keyword == null || keyword.isBlank() || item.title().toLowerCase().contains(keyword.toLowerCase()))
-                .skip((long) page * size)
-                .limit(size)
-                .toList();
+        return systemDesignDiagramRepository.list(keyword, page, size);
     }
 
     public String exportAsJson(String diagramId) {

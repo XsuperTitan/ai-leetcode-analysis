@@ -3,6 +3,7 @@ package com.aicoding.analysis.service;
 import com.aicoding.analysis.model.leetcode.LeetcodeAnalysisItem;
 import com.aicoding.analysis.model.leetcode.LeetcodeAnalyzeRequest;
 import com.aicoding.analysis.model.leetcode.LeetcodeAlternativeSolution;
+import com.aicoding.analysis.repository.LeetcodeAnalysisRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
@@ -11,7 +12,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 @Service
 public class LeetcodeService {
@@ -35,13 +35,18 @@ public class LeetcodeService {
             approachName, thinking, solutionCode, timeComplexity, spaceComplexity.
             """;
 
-    private final List<LeetcodeAnalysisItem> store = new CopyOnWriteArrayList<>();
     private final DeepseekChatService deepseekChatService;
     private final ObjectMapper objectMapper;
+    private final LeetcodeAnalysisRepository leetcodeAnalysisRepository;
 
-    public LeetcodeService(DeepseekChatService deepseekChatService, ObjectMapper objectMapper) {
+    public LeetcodeService(
+            DeepseekChatService deepseekChatService,
+            ObjectMapper objectMapper,
+            LeetcodeAnalysisRepository leetcodeAnalysisRepository
+    ) {
         this.deepseekChatService = deepseekChatService;
         this.objectMapper = objectMapper;
+        this.leetcodeAnalysisRepository = leetcodeAnalysisRepository;
     }
 
     public LeetcodeAnalysisItem analyze(LeetcodeAnalyzeRequest request) {
@@ -82,7 +87,7 @@ public class LeetcodeService {
                     readAlternativeSolutions(node.path("alternativeSolutions")),
                     Instant.now()
             );
-            store.add(0, item);
+            leetcodeAnalysisRepository.save(item);
             return item;
         } catch (Exception ex) {
             throw new IllegalStateException("Failed to parse LeetCode analysis: " + ex.getMessage(), ex);
@@ -90,18 +95,11 @@ public class LeetcodeService {
     }
 
     public List<LeetcodeAnalysisItem> list(String keyword, int page, int size) {
-        return store.stream()
-                .filter(item -> keyword == null || keyword.isBlank() || item.title().toLowerCase().contains(keyword.toLowerCase()))
-                .skip((long) page * size)
-                .limit(size)
-                .toList();
+        return leetcodeAnalysisRepository.list(keyword, page, size);
     }
 
     public LeetcodeAnalysisItem getById(String analysisId) {
-        return store.stream()
-                .filter(item -> item.analysisId().equals(analysisId))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Analysis not found"));
+        return leetcodeAnalysisRepository.getByAnalysisId(analysisId);
     }
 
     private List<String> readStringList(JsonNode jsonNode) {

@@ -4,6 +4,14 @@ server:
 spring:
   config:
     import: optional:file:.env.local[.properties],optional:file:./backend/.env.local[.properties]
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/ai_coding_analysis?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:root}
+  sql:
+    init:
+      mode: always
 
 deepseek:
   base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
