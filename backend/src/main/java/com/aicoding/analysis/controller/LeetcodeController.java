@@ -5,6 +5,9 @@ import com.aicoding.analysis.model.leetcode.LeetcodeAnalysisItem;
 import com.aicoding.analysis.model.leetcode.LeetcodeAnalyzeRequest;
 import com.aicoding.analysis.service.LeetcodeService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @RestController
@@ -42,5 +46,17 @@ public class LeetcodeController {
     @GetMapping("/analyses/{analysisId}")
     public ApiResponse<LeetcodeAnalysisItem> detail(@PathVariable String analysisId) {
         return ApiResponse.ok(leetcodeService.getById(analysisId));
+    }
+
+    @GetMapping("/analyses/{analysisId}/markdown")
+    public ResponseEntity<byte[]> downloadMarkdown(@PathVariable String analysisId) {
+        LeetcodeAnalysisItem item = leetcodeService.getById(analysisId);
+        String markdown = leetcodeService.getMarkdownContent(analysisId);
+        String safeTitle = item.title().replaceAll("[^a-zA-Z0-9\\-_]+", "_");
+        String fileName = safeTitle + "-" + analysisId + ".md";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+                .contentType(MediaType.parseMediaType("text/markdown"))
+                .body(markdown.getBytes(StandardCharsets.UTF_8));
     }
 }

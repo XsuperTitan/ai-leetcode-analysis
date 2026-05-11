@@ -17,6 +17,7 @@ public record LeetcodeAnalysisItem(
         String spaceComplexity,
         List<String> keyPoints,
         List<LeetcodeAlternativeSolution> alternativeSolutions,
+        String markdownContent,
         Instant createdAt
 ) {
 }

@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS leetcode_analysis (
     space_complexity VARCHAR(128) NULL,
     key_points_json JSON NOT NULL,
     alternative_solutions_json JSON NOT NULL,
+    markdown_content LONGTEXT NULL,
     created_at DATETIME(3) NOT NULL,
     updated_at DATETIME(3) NOT NULL,
     INDEX idx_leetcode_app_title (app_id, title),

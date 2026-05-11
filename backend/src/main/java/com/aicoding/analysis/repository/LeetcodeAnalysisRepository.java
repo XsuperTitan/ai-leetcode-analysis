@@ -13,6 +13,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 
 @Repository
 public class LeetcodeAnalysisRepository {
@@ -35,8 +36,8 @@ public class LeetcodeAnalysisRepository {
                 INSERT INTO leetcode_analysis (
                   analysis_id, app_id, title, description, constraints_json, language, difficulty,
                   thinking, solution_code, time_complexity, space_complexity, key_points_json,
-                  alternative_solutions_json, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  alternative_solutions_json, markdown_content, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         jdbcTemplate.update(
                 sql,
@@ -53,6 +54,7 @@ public class LeetcodeAnalysisRepository {
                 item.spaceComplexity(),
                 toJson(item.keyPoints()),
                 toJson(item.alternativeSolutions()),
+                item.markdownContent(),
                 Timestamp.from(item.createdAt()),
                 Timestamp.from(item.createdAt())
         );
@@ -63,25 +65,36 @@ public class LeetcodeAnalysisRepository {
         String sql = """
                 SELECT analysis_id, app_id, title, description, constraints_json, language, difficulty,
                        thinking, solution_code, time_complexity, space_complexity, key_points_json,
-                       alternative_solutions_json, created_at
+                       alternative_solutions_json, markdown_content, created_at
                 FROM leetcode_analysis
                 WHERE (? = '' OR LOWER(title) LIKE ?)
                 ORDER BY created_at DESC
                 LIMIT ? OFFSET ?
                 """;
         String likeKeyword = "%" + normalizedKeyword.toLowerCase() + "%";
-        return jdbcTemplate.query(sql, rowMapper(), normalizedKeyword, likeKeyword, size, (long) page * size);
+        return jdbcTemplate.query(
+                Objects.requireNonNull(sql),
+                Objects.requireNonNull(rowMapper()),
+                normalizedKeyword,
+                likeKeyword,
+                size,
+                (long) page * size
+        );
     }
 
     public LeetcodeAnalysisItem getByAnalysisId(String analysisId) {
         String sql = """
                 SELECT analysis_id, app_id, title, description, constraints_json, language, difficulty,
                        thinking, solution_code, time_complexity, space_complexity, key_points_json,
-                       alternative_solutions_json, created_at
+                       alternative_solutions_json, markdown_content, created_at
                 FROM leetcode_analysis
                 WHERE analysis_id = ?
                 """;
-        List<LeetcodeAnalysisItem> items = jdbcTemplate.query(sql, rowMapper(), analysisId);
+        List<LeetcodeAnalysisItem> items = jdbcTemplate.query(
+                Objects.requireNonNull(sql),
+                Objects.requireNonNull(rowMapper()),
+                analysisId
+        );
         if (items.isEmpty()) {
             throw new IllegalArgumentException("Analysis not found");
         }
@@ -103,6 +116,7 @@ public class LeetcodeAnalysisRepository {
                 resultSet.getString("space_complexity"),
                 fromJson(resultSet.getString("key_points_json"), STRING_LIST_TYPE),
                 fromJson(resultSet.getString("alternative_solutions_json"), ALT_SOLUTION_LIST_TYPE),
+                resultSet.getString("markdown_content"),
                 readInstant(resultSet, "created_at")
         );
     }

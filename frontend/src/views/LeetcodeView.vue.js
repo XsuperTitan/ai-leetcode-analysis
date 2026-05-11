@@ -1,5 +1,5 @@
 import { reactive, ref } from "vue";
-import { analyzeLeetcode, listLeetcode } from "../api/client";
+import { analyzeLeetcode, downloadLeetcodeMarkdown, getLeetcodeAnalysis, listLeetcode } from "../api/client";
 import { useAppStore } from "../stores/app";
 const appStore = useAppStore();
 const loading = ref(false);
@@ -46,6 +46,38 @@ async function submit() {
 }
 async function loadHistory() {
     history.value = await listLeetcode();
+}
+async function openHistory(analysisId) {
+    errorMessage.value = "";
+    try {
+        result.value = await getLeetcodeAnalysis(analysisId);
+    }
+    catch (error) {
+        errorMessage.value = extractErrorMessage(error);
+    }
+}
+async function downloadMarkdown(analysisId) {
+    errorMessage.value = "";
+    try {
+        const item = result.value && result.value.analysisId === analysisId
+            ? result.value
+            : await getLeetcodeAnalysis(analysisId);
+        if (!item) {
+            return;
+        }
+        const blob = await downloadLeetcodeMarkdown(analysisId);
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = `${item.title.replace(/[^a-zA-Z0-9\-_]+/g, "_")}-${analysisId}.md`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        window.URL.revokeObjectURL(url);
+    }
+    catch (error) {
+        errorMessage.value = extractErrorMessage(error);
+    }
 }
 void loadHistory();
 function extractErrorMessage(error) {
@@ -125,6 +157,19 @@ if (__VLS_ctx.result) {
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({});
     (__VLS_ctx.result.title);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "row" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (...[$event]) => {
+                if (!(__VLS_ctx.result))
+                    return;
+                __VLS_ctx.downloadMarkdown(__VLS_ctx.result.analysisId);
+            } },
+        ...{ class: "secondary" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    (__VLS_ctx.result.analysisId);
     __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({
@@ -172,6 +217,11 @@ if (__VLS_ctx.result) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({});
         (solution.solutionCode);
     }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({
+        ...{ style: {} },
+    });
+    (__VLS_ctx.result.markdownContent);
 }
 __VLS_asFunctionalElement(__VLS_intrinsicElements.section, __VLS_intrinsicElements.section)({
     ...{ class: "card" },
@@ -186,6 +236,12 @@ for (const [item] of __VLS_getVForSourceType((__VLS_ctx.history))) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
         key: (item.analysisId),
     });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (...[$event]) => {
+                __VLS_ctx.openHistory(item.analysisId);
+            } },
+        ...{ class: "secondary" },
+    });
     (item.title);
     (item.language);
 }
@@ -193,8 +249,11 @@ for (const [item] of __VLS_getVForSourceType((__VLS_ctx.history))) {
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['secondary']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
@@ -209,6 +268,8 @@ const __VLS_self = (await import('vue')).defineComponent({
             form: form,
             submit: submit,
             loadHistory: loadHistory,
+            openHistory: openHistory,
+            downloadMarkdown: downloadMarkdown,
         };
     },
 });

@@ -85,10 +85,29 @@ public class LeetcodeService {
                     node.path("spaceComplexity").asText(""),
                     readStringList(node.path("keyPoints")),
                     readAlternativeSolutions(node.path("alternativeSolutions")),
+                    "",
                     Instant.now()
             );
-            leetcodeAnalysisRepository.save(item);
-            return item;
+            String markdownContent = buildMarkdown(item);
+            LeetcodeAnalysisItem finalized = new LeetcodeAnalysisItem(
+                    item.analysisId(),
+                    item.appId(),
+                    item.title(),
+                    item.description(),
+                    item.constraints(),
+                    item.language(),
+                    item.difficulty(),
+                    item.thinking(),
+                    item.solutionCode(),
+                    item.timeComplexity(),
+                    item.spaceComplexity(),
+                    item.keyPoints(),
+                    item.alternativeSolutions(),
+                    markdownContent,
+                    item.createdAt()
+            );
+            leetcodeAnalysisRepository.save(finalized);
+            return finalized;
         } catch (Exception ex) {
             throw new IllegalStateException("Failed to parse LeetCode analysis: " + ex.getMessage(), ex);
         }
@@ -124,5 +143,68 @@ public class LeetcodeService {
                 item.path("spaceComplexity").asText("")
         )));
         return result;
+    }
+
+    public String getMarkdownContent(String analysisId) {
+        LeetcodeAnalysisItem item = getById(analysisId);
+        if (item.markdownContent() != null && !item.markdownContent().isBlank()) {
+            return item.markdownContent();
+        }
+        return buildMarkdown(item);
+    }
+
+    private String buildMarkdown(LeetcodeAnalysisItem item) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("# ").append(item.title()).append("\n\n");
+        builder.append("- Analysis ID: ").append(item.analysisId()).append("\n");
+        builder.append("- Language: ").append(item.language()).append("\n");
+        builder.append("- Difficulty: ").append(item.difficulty()).append("\n");
+        builder.append("- Time Complexity: ").append(item.timeComplexity()).append("\n");
+        builder.append("- Space Complexity: ").append(item.spaceComplexity()).append("\n\n");
+
+        if (item.description() != null && !item.description().isBlank()) {
+            builder.append("## Problem Description\n\n");
+            builder.append(item.description()).append("\n\n");
+        }
+
+        if (item.constraints() != null && !item.constraints().isEmpty()) {
+            builder.append("## Constraints\n\n");
+            for (String constraint : item.constraints()) {
+                builder.append("- ").append(constraint).append("\n");
+            }
+            builder.append("\n");
+        }
+
+        builder.append("## Beginner Friendly Explanation\n\n");
+        builder.append(item.thinking()).append("\n\n");
+
+        builder.append("## Main Solution\n\n");
+        builder.append("```").append(item.language()).append("\n");
+        builder.append(item.solutionCode()).append("\n");
+        builder.append("```\n\n");
+
+        if (item.keyPoints() != null && !item.keyPoints().isEmpty()) {
+            builder.append("## Key Points\n\n");
+            for (String keyPoint : item.keyPoints()) {
+                builder.append("- ").append(keyPoint).append("\n");
+            }
+            builder.append("\n");
+        }
+
+        if (item.alternativeSolutions() != null && !item.alternativeSolutions().isEmpty()) {
+            builder.append("## Alternative Solutions\n\n");
+            int index = 1;
+            for (LeetcodeAlternativeSolution solution : item.alternativeSolutions()) {
+                builder.append("### ").append(index++).append(". ").append(solution.approachName()).append("\n\n");
+                builder.append("- Time Complexity: ").append(solution.timeComplexity()).append("\n");
+                builder.append("- Space Complexity: ").append(solution.spaceComplexity()).append("\n\n");
+                builder.append(solution.thinking()).append("\n\n");
+                builder.append("```").append(item.language()).append("\n");
+                builder.append(solution.solutionCode()).append("\n");
+                builder.append("```\n\n");
+            }
+        }
+
+        return builder.toString();
     }
 }

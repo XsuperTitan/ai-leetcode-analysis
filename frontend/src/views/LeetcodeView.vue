@@ -25,6 +25,10 @@
 
   <section v-if="result" class="card">
     <h3>{{ result.title }}</h3>
+    <div class="row">
+      <button class="secondary" @click="downloadMarkdown(result.analysisId)">Download Markdown</button>
+      <span>{{ result.analysisId }}</span>
+    </div>
     <p><strong>Simple Detailed Explanation:</strong></p>
     <pre style="white-space: pre-wrap;">{{ result.thinking }}</pre>
     <p><strong>Time:</strong> {{ result.timeComplexity }} | <strong>Space:</strong> {{ result.spaceComplexity }}</p>
@@ -43,20 +47,27 @@
       <p><strong>Time:</strong> {{ solution.timeComplexity }} | <strong>Space:</strong> {{ solution.spaceComplexity }}</p>
       <pre>{{ solution.solutionCode }}</pre>
     </div>
+
+    <h4>Markdown Content</h4>
+    <pre style="white-space: pre-wrap;">{{ result.markdownContent }}</pre>
   </section>
 
   <section class="card">
     <h3>Recent Analyses</h3>
     <button class="secondary" @click="loadHistory">Refresh</button>
     <ul>
-      <li v-for="item in history" :key="item.analysisId">{{ item.title }} ({{ item.language }})</li>
+      <li v-for="item in history" :key="item.analysisId">
+        <button class="secondary" @click="openHistory(item.analysisId)">
+          {{ item.title }} ({{ item.language }})
+        </button>
+      </li>
     </ul>
   </section>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref } from "vue";
-import { analyzeLeetcode, listLeetcode } from "../api/client";
+import { analyzeLeetcode, downloadLeetcodeMarkdown, getLeetcodeAnalysis, listLeetcode } from "../api/client";
 import { useAppStore } from "../stores/app";
 import type { LeetcodeAnalysisItem } from "../types/api";
 
@@ -108,6 +119,38 @@ async function submit() {
 
 async function loadHistory() {
   history.value = await listLeetcode();
+}
+
+async function openHistory(analysisId: string) {
+  errorMessage.value = "";
+  try {
+    result.value = await getLeetcodeAnalysis(analysisId);
+  } catch (error: unknown) {
+    errorMessage.value = extractErrorMessage(error);
+  }
+}
+
+async function downloadMarkdown(analysisId: string) {
+  errorMessage.value = "";
+  try {
+    const item = result.value && result.value.analysisId === analysisId
+      ? result.value
+      : await getLeetcodeAnalysis(analysisId);
+    if (!item) {
+      return;
+    }
+    const blob = await downloadLeetcodeMarkdown(analysisId);
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${item.title.replace(/[^a-zA-Z0-9\-_]+/g, "_")}-${analysisId}.md`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    window.URL.revokeObjectURL(url);
+  } catch (error: unknown) {
+    errorMessage.value = extractErrorMessage(error);
+  }
 }
 
 void loadHistory();

@@ -26,6 +26,18 @@ export async function listLeetcode(keyword = ""): Promise<LeetcodeAnalysisItem[]
   return unwrap(resp.data);
 }
 
+export async function getLeetcodeAnalysis(analysisId: string): Promise<LeetcodeAnalysisItem> {
+  const resp = await client.get<ApiResponse<LeetcodeAnalysisItem>>(`/leetcode/analyses/${analysisId}`);
+  return unwrap(resp.data);
+}
+
+export async function downloadLeetcodeMarkdown(analysisId: string): Promise<Blob> {
+  const resp = await client.get(`/leetcode/analyses/${analysisId}/markdown`, {
+    responseType: "blob"
+  });
+  return resp.data as Blob;
+}
+
 export async function createDiagram(payload: DiagramUpsertRequest): Promise<SystemDesignDiagram> {
   const resp = await client.post<ApiResponse<SystemDesignDiagram>>("/system-design/diagrams", payload);
   return unwrap(resp.data);

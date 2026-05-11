@@ -27,6 +27,7 @@ export interface LeetcodeAnalysisItem {
   spaceComplexity: string;
   keyPoints: string[];
   alternativeSolutions: LeetcodeAlternativeSolution[];
+  markdownContent: string;
   createdAt: string;
 }
 

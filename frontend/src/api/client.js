@@ -12,6 +12,16 @@ export async function listLeetcode(keyword = "") {
     });
     return unwrap(resp.data);
 }
+export async function getLeetcodeAnalysis(analysisId) {
+    const resp = await client.get(`/leetcode/analyses/${analysisId}`);
+    return unwrap(resp.data);
+}
+export async function downloadLeetcodeMarkdown(analysisId) {
+    const resp = await client.get(`/leetcode/analyses/${analysisId}/markdown`, {
+        responseType: "blob"
+    });
+    return resp.data;
+}
 export async function createDiagram(payload) {
     const resp = await client.post("/system-design/diagrams", payload);
     return unwrap(resp.data);
