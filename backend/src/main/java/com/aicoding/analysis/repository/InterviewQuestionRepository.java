@@ -1,22 +1,16 @@
 package com.aicoding.analysis.repository;
 
 import com.aicoding.analysis.model.interview.InterviewQuestionItem;
+import com.aicoding.analysis.mapper.InterviewQuestionMapper;
+import com.aicoding.analysis.mapper.row.InterviewQuestionFavoriteRow;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Repository
 public class InterviewQuestionRepository {
@@ -24,11 +18,11 @@ public class InterviewQuestionRepository {
     private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {
     };
 
-    private final JdbcTemplate jdbcTemplate;
+    private final InterviewQuestionMapper interviewQuestionMapper;
     private final ObjectMapper objectMapper;
 
-    public InterviewQuestionRepository(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
-        this.jdbcTemplate = jdbcTemplate;
+    public InterviewQuestionRepository(InterviewQuestionMapper interviewQuestionMapper, ObjectMapper objectMapper) {
+        this.interviewQuestionMapper = interviewQuestionMapper;
         this.objectMapper = objectMapper;
     }
 
@@ -36,14 +30,8 @@ public class InterviewQuestionRepository {
         if (items == null || items.isEmpty()) {
             return;
         }
-        String sql = """
-                INSERT INTO interview_question_item (
-                  question_id, query_id, app_id, question_text, answer_hints_json, tags_json, category, level, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """;
         for (InterviewQuestionItem item : items) {
-            jdbcTemplate.update(
-                    sql,
+            interviewQuestionMapper.insertQuestion(
                     item.questionId(),
                     item.queryId(),
                     item.appId(),
@@ -58,77 +46,44 @@ public class InterviewQuestionRepository {
     }
 
     public void addFavorite(String questionId) {
-        Integer exists = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM interview_question_item WHERE question_id = ?",
-                Integer.class,
-                questionId
-        );
+        Integer exists = interviewQuestionMapper.countByQuestionId(questionId);
         if (exists == null || exists == 0) {
             throw new IllegalArgumentException("questionId not found");
         }
-
-        String sql = """
-                INSERT IGNORE INTO question_favorite (app_id, question_id, created_at)
-                SELECT app_id, question_id, ?
-                FROM interview_question_item
-                WHERE question_id = ?
-                LIMIT 1
-                """;
-        jdbcTemplate.update(sql, Timestamp.from(Instant.now()), questionId);
+        interviewQuestionMapper.insertFavoriteByQuestionId(questionId, Timestamp.from(Instant.now()));
     }
 
     public void removeFavorite(String questionId) {
-        jdbcTemplate.update("DELETE FROM question_favorite WHERE question_id = ?", questionId);
+        interviewQuestionMapper.removeFavorite(questionId);
     }
 
     public Set<String> findFavoriteQuestionIds(String appId, List<String> questionIds) {
         if (questionIds == null || questionIds.isEmpty()) {
             return Set.of();
         }
-        String placeholders = questionIds.stream().map(id -> "?").collect(Collectors.joining(","));
-        String sql = """
-                SELECT question_id
-                FROM question_favorite
-                WHERE app_id = ? AND question_id IN (%s)
-                """.formatted(placeholders);
-        List<Object> params = new ArrayList<>();
-        params.add(appId);
-        params.addAll(questionIds);
-        List<String> rows = jdbcTemplate.query(
-                Objects.requireNonNull(sql),
-                (resultSet, rowNum) -> resultSet.getString("question_id"),
-                params.toArray()
-        );
-        return new HashSet<>(rows);
+        return Set.copyOf(interviewQuestionMapper.findFavoriteQuestionIds(appId, questionIds));
     }
 
     public List<InterviewQuestionItem> listFavorites(String appId) {
-        String sql = """
-                SELECT i.question_id, i.query_id, i.app_id, i.question_text, i.answer_hints_json, i.tags_json, i.created_at
-                FROM interview_question_item i
-                INNER JOIN question_favorite f
-                  ON i.question_id = f.question_id AND i.app_id = f.app_id
-                WHERE i.app_id = ?
-                ORDER BY f.created_at DESC
-                """;
-        return jdbcTemplate.query(Objects.requireNonNull(sql), Objects.requireNonNull(favoriteRowMapper()), appId);
+        return interviewQuestionMapper.listFavorites(appId).stream()
+                .map(this::toDomainFavorite)
+                .toList();
     }
 
-    private RowMapper<InterviewQuestionItem> favoriteRowMapper() {
-        return (resultSet, rowNum) -> new InterviewQuestionItem(
-                resultSet.getString("question_id"),
-                resultSet.getString("query_id"),
-                resultSet.getString("app_id"),
-                resultSet.getString("question_text"),
-                fromJson(resultSet.getString("answer_hints_json")),
-                fromJson(resultSet.getString("tags_json")),
+    private InterviewQuestionItem toDomainFavorite(InterviewQuestionFavoriteRow row) {
+        return new InterviewQuestionItem(
+                row.getQuestionId(),
+                row.getQueryId(),
+                row.getAppId(),
+                row.getQuestionText(),
+                fromJson(row.getAnswerHintsJson()),
+                fromJson(row.getTagsJson()),
                 true,
-                readInstant(resultSet, "created_at")
+                readInstant(row.getCreatedAt())
         );
     }
 
-    private Instant readInstant(ResultSet resultSet, String column) throws SQLException {
-        Timestamp value = resultSet.getTimestamp(column);
+    private Instant readInstant(Timestamp value) {
         if (value == null) {
             return Instant.now();
         }

@@ -29,3 +29,7 @@ npm run dev
 
 Frontend default URL: `http://localhost:5173`  
 Backend default URL: `http://localhost:8080`
+
+## TODO
+
+- [ ] Optimize node and edge editing experience in `System Design Draft` tab.

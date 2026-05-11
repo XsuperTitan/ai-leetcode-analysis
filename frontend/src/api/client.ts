@@ -38,6 +38,11 @@ export async function downloadLeetcodeMarkdown(analysisId: string): Promise<Blob
   return resp.data as Blob;
 }
 
+export async function deleteLeetcodeAnalysis(analysisId: string): Promise<void> {
+  const resp = await client.delete<ApiResponse<{ status: string }>>(`/leetcode/analyses/${analysisId}`);
+  unwrap(resp.data);
+}
+
 export async function createDiagram(payload: DiagramUpsertRequest): Promise<SystemDesignDiagram> {
   const resp = await client.post<ApiResponse<SystemDesignDiagram>>("/system-design/diagrams", payload);
   return unwrap(resp.data);
@@ -48,6 +53,11 @@ export async function listDiagrams(keyword = ""): Promise<SystemDesignDiagram[]>
     params: { keyword, page: 0, size: 20 }
   });
   return unwrap(resp.data);
+}
+
+export async function deleteDiagram(diagramId: string): Promise<void> {
+  const resp = await client.delete<ApiResponse<{ status: string }>>(`/system-design/diagrams/${diagramId}`);
+  unwrap(resp.data);
 }
 
 export async function searchInterviewQuestions(payload: InterviewSearchRequest): Promise<InterviewSearchResult> {

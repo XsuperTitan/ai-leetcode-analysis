@@ -121,6 +121,10 @@ public class LeetcodeService {
         return leetcodeAnalysisRepository.getByAnalysisId(analysisId);
     }
 
+    public void deleteById(String analysisId) {
+        leetcodeAnalysisRepository.deleteByAnalysisId(analysisId);
+    }
+
     private List<String> readStringList(JsonNode jsonNode) {
         List<String> result = new ArrayList<>();
         if (jsonNode == null || !jsonNode.isArray()) {

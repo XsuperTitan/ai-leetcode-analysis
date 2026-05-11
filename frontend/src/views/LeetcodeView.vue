@@ -60,6 +60,7 @@
         <button class="secondary" @click="openHistory(item.analysisId)">
           {{ item.title }} ({{ item.language }})
         </button>
+        <button class="danger" style="margin-left: 8px;" @click="deleteHistory(item.analysisId)">Delete</button>
       </li>
     </ul>
   </section>
@@ -68,7 +69,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { storeToRefs } from "pinia";
-import { analyzeLeetcode, downloadLeetcodeMarkdown, getLeetcodeAnalysis, listLeetcode } from "../api/client";
+import { analyzeLeetcode, deleteLeetcodeAnalysis, downloadLeetcodeMarkdown, getLeetcodeAnalysis, listLeetcode } from "../api/client";
 import { useAppStore } from "../stores/app";
 import { useLeetcodeStore } from "../stores/leetcode";
 
@@ -148,6 +149,16 @@ async function downloadMarkdown(analysisId: string) {
     anchor.click();
     document.body.removeChild(anchor);
     window.URL.revokeObjectURL(url);
+  } catch (error: unknown) {
+    errorMessage.value = extractErrorMessage(error);
+  }
+}
+
+async function deleteHistory(analysisId: string) {
+  errorMessage.value = "";
+  try {
+    await deleteLeetcodeAnalysis(analysisId);
+    leetcodeStore.removeHistoryItem(analysisId);
   } catch (error: unknown) {
     errorMessage.value = extractErrorMessage(error);
   }

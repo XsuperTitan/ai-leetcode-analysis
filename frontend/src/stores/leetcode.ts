@@ -26,6 +26,13 @@ export const useLeetcodeStore = defineStore("leetcode", {
     setHistory(history: LeetcodeAnalysisItem[]) {
       this.history = history;
       saveCache(this.$state);
+    },
+    removeHistoryItem(analysisId: string) {
+      this.history = this.history.filter((item) => item.analysisId !== analysisId);
+      if (this.result?.analysisId === analysisId) {
+        this.result = null;
+      }
+      saveCache(this.$state);
     }
   }
 });

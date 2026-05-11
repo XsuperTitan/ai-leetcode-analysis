@@ -1,6 +1,6 @@
 import { ref, watch } from "vue";
 import { storeToRefs } from "pinia";
-import { analyzeLeetcode, downloadLeetcodeMarkdown, getLeetcodeAnalysis, listLeetcode } from "../api/client";
+import { analyzeLeetcode, deleteLeetcodeAnalysis, downloadLeetcodeMarkdown, getLeetcodeAnalysis, listLeetcode } from "../api/client";
 import { useAppStore } from "../stores/app";
 import { useLeetcodeStore } from "../stores/leetcode";
 const appStore = useAppStore();
@@ -75,6 +75,16 @@ async function downloadMarkdown(analysisId) {
         anchor.click();
         document.body.removeChild(anchor);
         window.URL.revokeObjectURL(url);
+    }
+    catch (error) {
+        errorMessage.value = extractErrorMessage(error);
+    }
+}
+async function deleteHistory(analysisId) {
+    errorMessage.value = "";
+    try {
+        await deleteLeetcodeAnalysis(analysisId);
+        leetcodeStore.removeHistoryItem(analysisId);
     }
     catch (error) {
         errorMessage.value = extractErrorMessage(error);
@@ -247,6 +257,13 @@ for (const [item] of __VLS_getVForSourceType((__VLS_ctx.history))) {
     });
     (item.title);
     (item.language);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (...[$event]) => {
+                __VLS_ctx.deleteHistory(item.analysisId);
+            } },
+        ...{ class: "danger" },
+        ...{ style: {} },
+    });
 }
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
@@ -258,6 +275,7 @@ for (const [item] of __VLS_getVForSourceType((__VLS_ctx.history))) {
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['danger']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
@@ -276,6 +294,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             loadHistory: loadHistory,
             openHistory: openHistory,
             downloadMarkdown: downloadMarkdown,
+            deleteHistory: deleteHistory,
         };
     },
 });

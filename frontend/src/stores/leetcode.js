@@ -13,6 +13,13 @@ export const useLeetcodeStore = defineStore("leetcode", {
         setHistory(history) {
             this.history = history;
             saveCache(this.$state);
+        },
+        removeHistoryItem(analysisId) {
+            this.history = this.history.filter((item) => item.analysisId !== analysisId);
+            if (this.result?.analysisId === analysisId) {
+                this.result = null;
+            }
+            saveCache(this.$state);
         }
     }
 });

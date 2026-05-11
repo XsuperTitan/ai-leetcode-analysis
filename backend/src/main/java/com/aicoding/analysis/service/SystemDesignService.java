@@ -59,6 +59,10 @@ public class SystemDesignService {
         return systemDesignDiagramRepository.list(keyword, page, size);
     }
 
+    public void deleteById(String diagramId) {
+        systemDesignDiagramRepository.deleteByDiagramId(diagramId);
+    }
+
     public String exportAsJson(String diagramId) {
         SystemDesignDiagram diagram = getById(diagramId);
         return """

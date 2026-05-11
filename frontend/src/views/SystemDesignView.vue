@@ -13,6 +13,7 @@
       </select>
       <button @click="addNode">Add Node</button>
       <button @click="saveDiagram">Save Diagram</button>
+      <button class="danger" @click="clearCanvas">Clear Canvas</button>
     </div>
     <div class="row">
       <select v-model="edgeSourceId">
@@ -26,6 +27,26 @@
       <input v-model="edgeLabel" placeholder="Edge label (e.g. HTTP)" />
       <button class="secondary" @click="addEdge">Add Edge</button>
     </div>
+    <div class="row">
+      <select v-model="selectedNodeId" @change="syncSelectedNodeLabel">
+        <option value="">Select node to edit</option>
+        <option v-for="node in nodes" :key="`edit-node-${node.id}`" :value="node.id">{{ node.label }}</option>
+      </select>
+      <input v-model="selectedNodeLabel" placeholder="Edit node text" />
+      <button class="secondary" @click="applyNodeLabel">Apply Node Text</button>
+      <button class="danger" @click="deleteSelectedNode">Delete Node</button>
+    </div>
+    <div class="row">
+      <select v-model="selectedEdgeId" @change="syncSelectedEdgeLabel">
+        <option value="">Select edge to edit</option>
+        <option v-for="edge in edges" :key="`edit-edge-${edge.id}`" :value="edge.id">
+          {{ edge.source }} -> {{ edge.target }}
+        </option>
+      </select>
+      <input v-model="selectedEdgeLabel" placeholder="Edit edge text" />
+      <button class="secondary" @click="applyEdgeLabel">Apply Edge Text</button>
+      <button class="danger" @click="deleteSelectedEdge">Delete Edge</button>
+    </div>
     <p>Current nodes: {{ nodes.length }} | edges: {{ edges.length }}</p>
     <p v-if="errorMessage" style="color: #dc2626; margin-top: 0;">{{ errorMessage }}</p>
 
@@ -38,10 +59,22 @@
           :y1="edge.y1"
           :x2="edge.x2"
           :y2="edge.y2"
-          stroke="#4b5563"
+          :stroke="selectedEdgeId === edge.id ? '#dc2626' : '#4b5563'"
           stroke-width="2"
           marker-end="url(#arrow)"
+          @click.stop="selectEdge(edge.id)"
         />
+        <text
+          v-for="edge in renderedEdges"
+          :key="`label-${edge.id}`"
+          :x="edge.labelX"
+          :y="edge.labelY"
+          text-anchor="middle"
+          font-size="12"
+          fill="#111827"
+        >
+          {{ edge.label }}
+        </text>
         <defs>
           <marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
             <polygon points="0 0, 8 3, 0 6" fill="#4b5563" />
@@ -53,8 +86,10 @@
         v-for="node in nodes"
         :key="node.id"
         class="diagram-node"
+        :class="{ selected: selectedNodeId === node.id }"
         :style="{ left: `${node.x}px`, top: `${node.y}px` }"
         @mousedown="startDrag($event, node.id)"
+        @click.stop="selectNode(node.id)"
       >
         <strong>{{ node.label }}</strong>
         <div class="node-type">{{ node.type }}</div>
@@ -69,6 +104,7 @@
       <li v-for="item in diagrams" :key="item.diagramId">
         {{ item.title }} ({{ item.nodes.length }} nodes)
         <button class="secondary" style="margin-left: 8px;" @click="useDiagram(item)">Load</button>
+        <button class="danger" style="margin-left: 8px;" @click="removeSavedDiagram(item.diagramId)">Delete</button>
       </li>
     </ul>
   </section>
@@ -77,7 +113,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
-import { createDiagram, listDiagrams } from "../api/client";
+import { createDiagram, deleteDiagram, listDiagrams } from "../api/client";
 import { useAppStore } from "../stores/app";
 import { useSystemDesignStore } from "../stores/systemDesign";
 import type { SystemDesignDiagram } from "../types/api";
@@ -92,6 +128,10 @@ const systemDesignStore = useSystemDesignStore();
 const { title, nodes, edges, diagrams, newNodeType, edgeSourceId, edgeTargetId, edgeLabel } = storeToRefs(systemDesignStore);
 const errorMessage = ref("");
 const canvasRef = ref<HTMLElement | null>(null);
+const selectedNodeId = ref("");
+const selectedEdgeId = ref("");
+const selectedNodeLabel = ref("");
+const selectedEdgeLabel = ref("");
 
 const draggingNodeId = ref<string | null>(null);
 const dragOffsetX = ref(0);
@@ -114,10 +154,13 @@ const renderedEdges = computed(() => {
         x1: source.x + NODE_WIDTH / 2,
         y1: source.y + NODE_HEIGHT / 2,
         x2: target.x + NODE_WIDTH / 2,
-        y2: target.y + NODE_HEIGHT / 2
+        y2: target.y + NODE_HEIGHT / 2,
+        labelX: (source.x + target.x) / 2 + NODE_WIDTH / 2,
+        labelY: (source.y + target.y) / 2 + NODE_HEIGHT / 2 - 6,
+        label: edge.label
       };
     })
-    .filter((item): item is { id: string; x1: number; y1: number; x2: number; y2: number } => item !== null);
+    .filter((item): item is { id: string; x1: number; y1: number; x2: number; y2: number; labelX: number; labelY: number; label: string } => item !== null);
 });
 
 function addNode() {
@@ -149,6 +192,8 @@ function addEdge() {
     target: edgeTargetId.value,
     label: edgeLabel.value || "link"
   });
+  selectedEdgeId.value = edges.value[edges.value.length - 1].id;
+  selectedEdgeLabel.value = edges.value[edges.value.length - 1].label;
   systemDesignStore.persist();
 }
 
@@ -181,6 +226,20 @@ async function loadDiagrams() {
 
 function useDiagram(item: SystemDesignDiagram) {
   systemDesignStore.setCanvasData(item.title, [...item.nodes], [...item.edges]);
+  selectedNodeId.value = "";
+  selectedEdgeId.value = "";
+  selectedNodeLabel.value = "";
+  selectedEdgeLabel.value = "";
+}
+
+async function removeSavedDiagram(diagramId: string) {
+  errorMessage.value = "";
+  try {
+    await deleteDiagram(diagramId);
+    systemDesignStore.removeDiagram(diagramId);
+  } catch (error: unknown) {
+    errorMessage.value = extractErrorMessage(error);
+  }
 }
 
 function startDrag(event: MouseEvent, nodeId: string) {
@@ -192,6 +251,102 @@ function startDrag(event: MouseEvent, nodeId: string) {
   draggingNodeId.value = nodeId;
   dragOffsetX.value = event.clientX - canvasRect.left - node.x;
   dragOffsetY.value = event.clientY - canvasRect.top - node.y;
+}
+
+function selectNode(nodeId: string) {
+  selectedNodeId.value = nodeId;
+  const node = nodes.value.find((item) => item.id === nodeId);
+  selectedNodeLabel.value = node?.label || "";
+}
+
+function selectEdge(edgeId: string) {
+  selectedEdgeId.value = edgeId;
+  const edge = edges.value.find((item) => item.id === edgeId);
+  selectedEdgeLabel.value = edge?.label || "";
+}
+
+function syncSelectedNodeLabel() {
+  const node = nodes.value.find((item) => item.id === selectedNodeId.value);
+  selectedNodeLabel.value = node?.label || "";
+}
+
+function syncSelectedEdgeLabel() {
+  const edge = edges.value.find((item) => item.id === selectedEdgeId.value);
+  selectedEdgeLabel.value = edge?.label || "";
+}
+
+function applyNodeLabel() {
+  if (!selectedNodeId.value) {
+    return;
+  }
+  const nextLabel = selectedNodeLabel.value.trim();
+  if (!nextLabel) {
+    errorMessage.value = "Node text cannot be empty.";
+    return;
+  }
+  nodes.value = nodes.value.map((node) =>
+    node.id === selectedNodeId.value ? { ...node, label: nextLabel } : node
+  );
+  systemDesignStore.persist();
+}
+
+function applyEdgeLabel() {
+  if (!selectedEdgeId.value) {
+    return;
+  }
+  const nextLabel = selectedEdgeLabel.value.trim();
+  if (!nextLabel) {
+    errorMessage.value = "Edge text cannot be empty.";
+    return;
+  }
+  edges.value = edges.value.map((edge) =>
+    edge.id === selectedEdgeId.value ? { ...edge, label: nextLabel } : edge
+  );
+  systemDesignStore.persist();
+}
+
+function deleteSelectedNode() {
+  if (!selectedNodeId.value) {
+    return;
+  }
+  const nodeId = selectedNodeId.value;
+  nodes.value = nodes.value.filter((node) => node.id !== nodeId);
+  edges.value = edges.value.filter((edge) => edge.source !== nodeId && edge.target !== nodeId);
+  if (edgeSourceId.value === nodeId) {
+    edgeSourceId.value = "";
+  }
+  if (edgeTargetId.value === nodeId) {
+    edgeTargetId.value = "";
+  }
+  selectedNodeId.value = "";
+  selectedNodeLabel.value = "";
+  if (selectedEdgeId.value && !edges.value.some((edge) => edge.id === selectedEdgeId.value)) {
+    selectedEdgeId.value = "";
+    selectedEdgeLabel.value = "";
+  }
+  systemDesignStore.persist();
+}
+
+function deleteSelectedEdge() {
+  if (!selectedEdgeId.value) {
+    return;
+  }
+  edges.value = edges.value.filter((edge) => edge.id !== selectedEdgeId.value);
+  selectedEdgeId.value = "";
+  selectedEdgeLabel.value = "";
+  systemDesignStore.persist();
+}
+
+function clearCanvas() {
+  nodes.value = [];
+  edges.value = [];
+  edgeSourceId.value = "";
+  edgeTargetId.value = "";
+  selectedNodeId.value = "";
+  selectedEdgeId.value = "";
+  selectedNodeLabel.value = "";
+  selectedEdgeLabel.value = "";
+  systemDesignStore.persist();
 }
 
 function onMouseMove(event: MouseEvent) {
@@ -257,7 +412,7 @@ onBeforeUnmount(() => {
   inset: 0;
   width: 100%;
   height: 100%;
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .diagram-node {
@@ -275,6 +430,10 @@ onBeforeUnmount(() => {
 
 .diagram-node:active {
   cursor: grabbing;
+}
+
+.diagram-node.selected {
+  border: 2px solid #2563eb;
 }
 
 .node-type {

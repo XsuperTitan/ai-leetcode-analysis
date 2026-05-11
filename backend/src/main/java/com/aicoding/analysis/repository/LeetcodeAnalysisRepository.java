@@ -2,18 +2,15 @@ package com.aicoding.analysis.repository;
 
 import com.aicoding.analysis.model.leetcode.LeetcodeAlternativeSolution;
 import com.aicoding.analysis.model.leetcode.LeetcodeAnalysisItem;
+import com.aicoding.analysis.mapper.LeetcodeAnalysisMapper;
+import com.aicoding.analysis.mapper.row.LeetcodeAnalysisRow;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
-import java.util.Objects;
 
 @Repository
 public class LeetcodeAnalysisRepository {
@@ -23,24 +20,16 @@ public class LeetcodeAnalysisRepository {
     private static final TypeReference<List<LeetcodeAlternativeSolution>> ALT_SOLUTION_LIST_TYPE = new TypeReference<>() {
     };
 
-    private final JdbcTemplate jdbcTemplate;
+    private final LeetcodeAnalysisMapper leetcodeAnalysisMapper;
     private final ObjectMapper objectMapper;
 
-    public LeetcodeAnalysisRepository(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
-        this.jdbcTemplate = jdbcTemplate;
+    public LeetcodeAnalysisRepository(LeetcodeAnalysisMapper leetcodeAnalysisMapper, ObjectMapper objectMapper) {
+        this.leetcodeAnalysisMapper = leetcodeAnalysisMapper;
         this.objectMapper = objectMapper;
     }
 
     public void save(LeetcodeAnalysisItem item) {
-        String sql = """
-                INSERT INTO leetcode_analysis (
-                  analysis_id, app_id, title, description, constraints_json, language, difficulty,
-                  thinking, solution_code, time_complexity, space_complexity, key_points_json,
-                  alternative_solutions_json, markdown_content, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """;
-        jdbcTemplate.update(
-                sql,
+        leetcodeAnalysisMapper.insert(
                 item.analysisId(),
                 item.appId(),
                 item.title(),
@@ -62,67 +51,48 @@ public class LeetcodeAnalysisRepository {
 
     public List<LeetcodeAnalysisItem> list(String keyword, int page, int size) {
         String normalizedKeyword = keyword == null ? "" : keyword.trim();
-        String sql = """
-                SELECT analysis_id, app_id, title, description, constraints_json, language, difficulty,
-                       thinking, solution_code, time_complexity, space_complexity, key_points_json,
-                       alternative_solutions_json, markdown_content, created_at
-                FROM leetcode_analysis
-                WHERE (? = '' OR LOWER(title) LIKE ?)
-                ORDER BY created_at DESC
-                LIMIT ? OFFSET ?
-                """;
-        String likeKeyword = "%" + normalizedKeyword.toLowerCase() + "%";
-        return jdbcTemplate.query(
-                Objects.requireNonNull(sql),
-                Objects.requireNonNull(rowMapper()),
-                normalizedKeyword,
-                likeKeyword,
-                size,
-                (long) page * size
-        );
+        return leetcodeAnalysisMapper.list(normalizedKeyword, size, (long) page * size)
+                .stream()
+                .map(this::toDomain)
+                .toList();
     }
 
     public LeetcodeAnalysisItem getByAnalysisId(String analysisId) {
-        String sql = """
-                SELECT analysis_id, app_id, title, description, constraints_json, language, difficulty,
-                       thinking, solution_code, time_complexity, space_complexity, key_points_json,
-                       alternative_solutions_json, markdown_content, created_at
-                FROM leetcode_analysis
-                WHERE analysis_id = ?
-                """;
-        List<LeetcodeAnalysisItem> items = jdbcTemplate.query(
-                Objects.requireNonNull(sql),
-                Objects.requireNonNull(rowMapper()),
-                analysisId
-        );
-        if (items.isEmpty()) {
+        LeetcodeAnalysisRow row = leetcodeAnalysisMapper.getByAnalysisId(analysisId);
+        if (row == null) {
             throw new IllegalArgumentException("Analysis not found");
         }
-        return items.get(0);
+        return toDomain(row);
     }
 
-    private RowMapper<LeetcodeAnalysisItem> rowMapper() {
-        return (resultSet, rowNum) -> new LeetcodeAnalysisItem(
-                resultSet.getString("analysis_id"),
-                resultSet.getString("app_id"),
-                resultSet.getString("title"),
-                resultSet.getString("description"),
-                fromJson(resultSet.getString("constraints_json"), STRING_LIST_TYPE),
-                resultSet.getString("language"),
-                resultSet.getString("difficulty"),
-                resultSet.getString("thinking"),
-                resultSet.getString("solution_code"),
-                resultSet.getString("time_complexity"),
-                resultSet.getString("space_complexity"),
-                fromJson(resultSet.getString("key_points_json"), STRING_LIST_TYPE),
-                fromJson(resultSet.getString("alternative_solutions_json"), ALT_SOLUTION_LIST_TYPE),
-                resultSet.getString("markdown_content"),
-                readInstant(resultSet, "created_at")
+    public void deleteByAnalysisId(String analysisId) {
+        int deleted = leetcodeAnalysisMapper.deleteByAnalysisId(analysisId);
+        if (deleted == 0) {
+            throw new IllegalArgumentException("Analysis not found");
+        }
+    }
+
+    private LeetcodeAnalysisItem toDomain(LeetcodeAnalysisRow row) {
+        return new LeetcodeAnalysisItem(
+                row.getAnalysisId(),
+                row.getAppId(),
+                row.getTitle(),
+                row.getDescription(),
+                fromJson(row.getConstraintsJson(), STRING_LIST_TYPE),
+                row.getLanguage(),
+                row.getDifficulty(),
+                row.getThinking(),
+                row.getSolutionCode(),
+                row.getTimeComplexity(),
+                row.getSpaceComplexity(),
+                fromJson(row.getKeyPointsJson(), STRING_LIST_TYPE),
+                fromJson(row.getAlternativeSolutionsJson(), ALT_SOLUTION_LIST_TYPE),
+                row.getMarkdownContent(),
+                readInstant(row.getCreatedAt())
         );
     }
 
-    private Instant readInstant(ResultSet resultSet, String column) throws SQLException {
-        Timestamp value = resultSet.getTimestamp(column);
+    private Instant readInstant(Timestamp value) {
         if (value == null) {
             return Instant.now();
         }

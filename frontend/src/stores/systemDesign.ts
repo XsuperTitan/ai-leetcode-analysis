@@ -24,6 +24,10 @@ export const useSystemDesignStore = defineStore("systemDesign", {
       this.diagrams = diagrams;
       saveCache(this.$state);
     },
+    removeDiagram(diagramId: string) {
+      this.diagrams = this.diagrams.filter((item) => item.diagramId !== diagramId);
+      saveCache(this.$state);
+    },
     setCanvasData(title: string, nodes: DiagramNode[], edges: DiagramEdge[]) {
       this.title = title;
       this.nodes = nodes;

@@ -1,6 +1,6 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
-import { createDiagram, listDiagrams } from "../api/client";
+import { createDiagram, deleteDiagram, listDiagrams } from "../api/client";
 import { useAppStore } from "../stores/app";
 import { useSystemDesignStore } from "../stores/systemDesign";
 const NODE_WIDTH = 150;
@@ -12,6 +12,10 @@ const systemDesignStore = useSystemDesignStore();
 const { title, nodes, edges, diagrams, newNodeType, edgeSourceId, edgeTargetId, edgeLabel } = storeToRefs(systemDesignStore);
 const errorMessage = ref("");
 const canvasRef = ref(null);
+const selectedNodeId = ref("");
+const selectedEdgeId = ref("");
+const selectedNodeLabel = ref("");
+const selectedEdgeLabel = ref("");
 const draggingNodeId = ref(null);
 const dragOffsetX = ref(0);
 const dragOffsetY = ref(0);
@@ -31,7 +35,10 @@ const renderedEdges = computed(() => {
             x1: source.x + NODE_WIDTH / 2,
             y1: source.y + NODE_HEIGHT / 2,
             x2: target.x + NODE_WIDTH / 2,
-            y2: target.y + NODE_HEIGHT / 2
+            y2: target.y + NODE_HEIGHT / 2,
+            labelX: (source.x + target.x) / 2 + NODE_WIDTH / 2,
+            labelY: (source.y + target.y) / 2 + NODE_HEIGHT / 2 - 6,
+            label: edge.label
         };
     })
         .filter((item) => item !== null);
@@ -64,6 +71,8 @@ function addEdge() {
         target: edgeTargetId.value,
         label: edgeLabel.value || "link"
     });
+    selectedEdgeId.value = edges.value[edges.value.length - 1].id;
+    selectedEdgeLabel.value = edges.value[edges.value.length - 1].label;
     systemDesignStore.persist();
 }
 async function saveDiagram() {
@@ -94,6 +103,20 @@ async function loadDiagrams() {
 }
 function useDiagram(item) {
     systemDesignStore.setCanvasData(item.title, [...item.nodes], [...item.edges]);
+    selectedNodeId.value = "";
+    selectedEdgeId.value = "";
+    selectedNodeLabel.value = "";
+    selectedEdgeLabel.value = "";
+}
+async function removeSavedDiagram(diagramId) {
+    errorMessage.value = "";
+    try {
+        await deleteDiagram(diagramId);
+        systemDesignStore.removeDiagram(diagramId);
+    }
+    catch (error) {
+        errorMessage.value = extractErrorMessage(error);
+    }
 }
 function startDrag(event, nodeId) {
     const node = nodes.value.find((item) => item.id === nodeId);
@@ -104,6 +127,89 @@ function startDrag(event, nodeId) {
     draggingNodeId.value = nodeId;
     dragOffsetX.value = event.clientX - canvasRect.left - node.x;
     dragOffsetY.value = event.clientY - canvasRect.top - node.y;
+}
+function selectNode(nodeId) {
+    selectedNodeId.value = nodeId;
+    const node = nodes.value.find((item) => item.id === nodeId);
+    selectedNodeLabel.value = node?.label || "";
+}
+function selectEdge(edgeId) {
+    selectedEdgeId.value = edgeId;
+    const edge = edges.value.find((item) => item.id === edgeId);
+    selectedEdgeLabel.value = edge?.label || "";
+}
+function syncSelectedNodeLabel() {
+    const node = nodes.value.find((item) => item.id === selectedNodeId.value);
+    selectedNodeLabel.value = node?.label || "";
+}
+function syncSelectedEdgeLabel() {
+    const edge = edges.value.find((item) => item.id === selectedEdgeId.value);
+    selectedEdgeLabel.value = edge?.label || "";
+}
+function applyNodeLabel() {
+    if (!selectedNodeId.value) {
+        return;
+    }
+    const nextLabel = selectedNodeLabel.value.trim();
+    if (!nextLabel) {
+        errorMessage.value = "Node text cannot be empty.";
+        return;
+    }
+    nodes.value = nodes.value.map((node) => node.id === selectedNodeId.value ? { ...node, label: nextLabel } : node);
+    systemDesignStore.persist();
+}
+function applyEdgeLabel() {
+    if (!selectedEdgeId.value) {
+        return;
+    }
+    const nextLabel = selectedEdgeLabel.value.trim();
+    if (!nextLabel) {
+        errorMessage.value = "Edge text cannot be empty.";
+        return;
+    }
+    edges.value = edges.value.map((edge) => edge.id === selectedEdgeId.value ? { ...edge, label: nextLabel } : edge);
+    systemDesignStore.persist();
+}
+function deleteSelectedNode() {
+    if (!selectedNodeId.value) {
+        return;
+    }
+    const nodeId = selectedNodeId.value;
+    nodes.value = nodes.value.filter((node) => node.id !== nodeId);
+    edges.value = edges.value.filter((edge) => edge.source !== nodeId && edge.target !== nodeId);
+    if (edgeSourceId.value === nodeId) {
+        edgeSourceId.value = "";
+    }
+    if (edgeTargetId.value === nodeId) {
+        edgeTargetId.value = "";
+    }
+    selectedNodeId.value = "";
+    selectedNodeLabel.value = "";
+    if (selectedEdgeId.value && !edges.value.some((edge) => edge.id === selectedEdgeId.value)) {
+        selectedEdgeId.value = "";
+        selectedEdgeLabel.value = "";
+    }
+    systemDesignStore.persist();
+}
+function deleteSelectedEdge() {
+    if (!selectedEdgeId.value) {
+        return;
+    }
+    edges.value = edges.value.filter((edge) => edge.id !== selectedEdgeId.value);
+    selectedEdgeId.value = "";
+    selectedEdgeLabel.value = "";
+    systemDesignStore.persist();
+}
+function clearCanvas() {
+    nodes.value = [];
+    edges.value = [];
+    edgeSourceId.value = "";
+    edgeTargetId.value = "";
+    selectedNodeId.value = "";
+    selectedEdgeId.value = "";
+    selectedNodeLabel.value = "";
+    selectedEdgeLabel.value = "";
+    systemDesignStore.persist();
 }
 function onMouseMove(event) {
     if (!draggingNodeId.value || !canvasRef.value) {
@@ -145,6 +251,7 @@ const __VLS_ctx = {};
 let __VLS_components;
 let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['diagram-node']} */ ;
+/** @type {__VLS_StyleScopedClasses['diagram-node']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.section, __VLS_intrinsicElements.section)({
@@ -185,6 +292,10 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (__VLS_ctx.saveDiagram) },
 });
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.clearCanvas) },
+    ...{ class: "danger" },
+});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "row" },
 });
@@ -222,6 +333,65 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     ...{ onClick: (__VLS_ctx.addEdge) },
     ...{ class: "secondary" },
 });
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "row" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+    ...{ onChange: (__VLS_ctx.syncSelectedNodeLabel) },
+    value: (__VLS_ctx.selectedNodeId),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: "",
+});
+for (const [node] of __VLS_getVForSourceType((__VLS_ctx.nodes))) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        key: (`edit-node-${node.id}`),
+        value: (node.id),
+    });
+    (node.label);
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+    placeholder: "Edit node text",
+});
+(__VLS_ctx.selectedNodeLabel);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.applyNodeLabel) },
+    ...{ class: "secondary" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.deleteSelectedNode) },
+    ...{ class: "danger" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "row" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+    ...{ onChange: (__VLS_ctx.syncSelectedEdgeLabel) },
+    value: (__VLS_ctx.selectedEdgeId),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: "",
+});
+for (const [edge] of __VLS_getVForSourceType((__VLS_ctx.edges))) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        key: (`edit-edge-${edge.id}`),
+        value: (edge.id),
+    });
+    (edge.source);
+    (edge.target);
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+    placeholder: "Edit edge text",
+});
+(__VLS_ctx.selectedEdgeLabel);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.applyEdgeLabel) },
+    ...{ class: "secondary" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.deleteSelectedEdge) },
+    ...{ class: "danger" },
+});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
 (__VLS_ctx.nodes.length);
 (__VLS_ctx.edges.length);
@@ -241,15 +411,29 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.svg, __VLS_intrinsicElements.s
 });
 for (const [edge] of __VLS_getVForSourceType((__VLS_ctx.renderedEdges))) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.line)({
+        ...{ onClick: (...[$event]) => {
+                __VLS_ctx.selectEdge(edge.id);
+            } },
         key: (edge.id),
         x1: (edge.x1),
         y1: (edge.y1),
         x2: (edge.x2),
         y2: (edge.y2),
-        stroke: "#4b5563",
+        stroke: (__VLS_ctx.selectedEdgeId === edge.id ? '#dc2626' : '#4b5563'),
         'stroke-width': "2",
         'marker-end': "url(#arrow)",
     });
+}
+for (const [edge] of __VLS_getVForSourceType((__VLS_ctx.renderedEdges))) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.text, __VLS_intrinsicElements.text)({
+        key: (`label-${edge.id}`),
+        x: (edge.labelX),
+        y: (edge.labelY),
+        'text-anchor': "middle",
+        'font-size': "12",
+        fill: "#111827",
+    });
+    (edge.label);
 }
 __VLS_asFunctionalElement(__VLS_intrinsicElements.defs, __VLS_intrinsicElements.defs)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.marker, __VLS_intrinsicElements.marker)({
@@ -269,8 +453,12 @@ for (const [node] of __VLS_getVForSourceType((__VLS_ctx.nodes))) {
         ...{ onMousedown: (...[$event]) => {
                 __VLS_ctx.startDrag($event, node.id);
             } },
+        ...{ onClick: (...[$event]) => {
+                __VLS_ctx.selectNode(node.id);
+            } },
         key: (node.id),
         ...{ class: "diagram-node" },
+        ...{ class: ({ selected: __VLS_ctx.selectedNodeId === node.id }) },
         ...{ style: ({ left: `${node.x}px`, top: `${node.y}px` }) },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
@@ -302,11 +490,25 @@ for (const [item] of __VLS_getVForSourceType((__VLS_ctx.diagrams))) {
         ...{ class: "secondary" },
         ...{ style: {} },
     });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (...[$event]) => {
+                __VLS_ctx.removeSavedDiagram(item.diagramId);
+            } },
+        ...{ class: "danger" },
+        ...{ style: {} },
+    });
 }
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['diagram-canvas']} */ ;
 /** @type {__VLS_StyleScopedClasses['diagram-svg']} */ ;
 /** @type {__VLS_StyleScopedClasses['diagram-node']} */ ;
@@ -314,6 +516,7 @@ for (const [item] of __VLS_getVForSourceType((__VLS_ctx.diagrams))) {
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['danger']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
@@ -328,13 +531,27 @@ const __VLS_self = (await import('vue')).defineComponent({
             edgeLabel: edgeLabel,
             errorMessage: errorMessage,
             canvasRef: canvasRef,
+            selectedNodeId: selectedNodeId,
+            selectedEdgeId: selectedEdgeId,
+            selectedNodeLabel: selectedNodeLabel,
+            selectedEdgeLabel: selectedEdgeLabel,
             renderedEdges: renderedEdges,
             addNode: addNode,
             addEdge: addEdge,
             saveDiagram: saveDiagram,
             loadDiagrams: loadDiagrams,
             useDiagram: useDiagram,
+            removeSavedDiagram: removeSavedDiagram,
             startDrag: startDrag,
+            selectNode: selectNode,
+            selectEdge: selectEdge,
+            syncSelectedNodeLabel: syncSelectedNodeLabel,
+            syncSelectedEdgeLabel: syncSelectedEdgeLabel,
+            applyNodeLabel: applyNodeLabel,
+            applyEdgeLabel: applyEdgeLabel,
+            deleteSelectedNode: deleteSelectedNode,
+            deleteSelectedEdge: deleteSelectedEdge,
+            clearCanvas: clearCanvas,
         };
     },
 });

@@ -18,3 +18,7 @@ deepseek:
   api-key: ${DEEPSEEK_API_KEY:}
   model: ${DEEPSEEK_MODEL:deepseek-chat}
   chat-path: ${DEEPSEEK_CHAT_PATH:/chat/completions}
+
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true

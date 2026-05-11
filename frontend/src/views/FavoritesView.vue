@@ -9,6 +9,7 @@
         <ul>
           <li v-for="hint in item.answerHints" :key="hint">{{ hint }}</li>
         </ul>
+        <button class="danger" @click="removeFromFavorites(item.questionId)">Delete from favorites</button>
       </li>
     </ul>
   </section>
@@ -16,7 +17,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { getFavorites } from "../api/client";
+import { getFavorites, removeFavorite } from "../api/client";
 import { useAppStore } from "../stores/app";
 import { useInterviewStore } from "../stores/interview";
 import type { InterviewQuestionItem } from "../types/api";
@@ -30,6 +31,18 @@ async function load() {
   errorMessage.value = "";
   try {
     items.value = await getFavorites(appStore.appId);
+    interviewStore.syncFavorites(items.value.map((item) => item.questionId));
+  } catch (error: unknown) {
+    errorMessage.value = extractErrorMessage(error);
+  }
+}
+
+async function removeFromFavorites(questionId: string) {
+  errorMessage.value = "";
+  try {
+    await removeFavorite(questionId);
+    items.value = items.value.filter((item) => item.questionId !== questionId);
+    interviewStore.updateFavorite(questionId, false);
     interviewStore.syncFavorites(items.value.map((item) => item.questionId));
   } catch (error: unknown) {
     errorMessage.value = extractErrorMessage(error);

@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -57,5 +58,11 @@ public class SystemDesignController {
     @PostMapping("/diagrams/{diagramId}/export")
     public ApiResponse<Map<String, String>> exportJson(@PathVariable String diagramId) {
         return ApiResponse.ok(Map.of("format", "json", "content", systemDesignService.exportAsJson(diagramId)));
+    }
+
+    @DeleteMapping("/diagrams/{diagramId}")
+    public ApiResponse<Map<String, String>> delete(@PathVariable String diagramId) {
+        systemDesignService.deleteById(diagramId);
+        return ApiResponse.ok(Map.of("status", "deleted"));
     }
 }

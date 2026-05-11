@@ -22,6 +22,10 @@ export async function downloadLeetcodeMarkdown(analysisId) {
     });
     return resp.data;
 }
+export async function deleteLeetcodeAnalysis(analysisId) {
+    const resp = await client.delete(`/leetcode/analyses/${analysisId}`);
+    unwrap(resp.data);
+}
 export async function createDiagram(payload) {
     const resp = await client.post("/system-design/diagrams", payload);
     return unwrap(resp.data);
@@ -31,6 +35,10 @@ export async function listDiagrams(keyword = "") {
         params: { keyword, page: 0, size: 20 }
     });
     return unwrap(resp.data);
+}
+export async function deleteDiagram(diagramId) {
+    const resp = await client.delete(`/system-design/diagrams/${diagramId}`);
+    unwrap(resp.data);
 }
 export async function searchInterviewQuestions(payload) {
     const resp = await client.post("/interview-questions/search", payload);
