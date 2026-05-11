@@ -1,0 +1,94 @@
+:root {
+  font-family: Inter, Arial, sans-serif;
+  color: #1a1a1a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f5f6f8;
+}
+
+.layout {
+  min-height: 100vh;
+}
+
+.topbar {
+  background: #202733;
+  color: #fff;
+  padding: 12px 20px;
+}
+
+.topbar h1 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+.topbar nav {
+  display: flex;
+  gap: 12px;
+}
+
+.topbar a {
+  color: #fff;
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.topbar a.router-link-active {
+  background: #3b82f6;
+}
+
+.main {
+  padding: 20px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+input, select, textarea, button {
+  font: inherit;
+}
+
+input, select, textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #d6d6d6;
+  border-radius: 6px;
+}
+
+textarea {
+  min-height: 120px;
+}
+
+button {
+  border: 0;
+  background: #2563eb;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #64748b;
+}
+
+button.danger {
+  background: #dc2626;
+}
