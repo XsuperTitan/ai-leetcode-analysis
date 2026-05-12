@@ -10,6 +10,10 @@ export const useInterviewStore = defineStore("interview", {
             this.result = result;
             saveCache(this.$state);
         },
+        patchQuestion(questionId, partial) {
+            this.result = this.result.map((item) => item.questionId === questionId ? { ...item, ...partial } : item);
+            saveCache(this.$state);
+        },
         updateFavorite(questionId, isFavorite) {
             this.result = this.result.map((item) => item.questionId === questionId ? { ...item, isFavorite } : item);
             saveCache(this.$state);
@@ -37,7 +41,14 @@ function loadCache() {
             keyword: parsed.keyword || "spring transaction",
             category: parsed.category || "backend",
             level: parsed.level || "middle",
-            result: Array.isArray(parsed.result) ? parsed.result : []
+            result: Array.isArray(parsed.result)
+                ? parsed.result.map((item) => ({
+                    ...item,
+                    detailAnswer: item.detailAnswer ?? "",
+                    answerHints: Array.isArray(item.answerHints) ? item.answerHints : [],
+                    tags: Array.isArray(item.tags) ? item.tags : []
+                }))
+                : []
         };
     }
     catch {

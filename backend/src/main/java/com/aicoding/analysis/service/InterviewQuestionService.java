@@ -23,6 +23,14 @@ public class InterviewQuestionService {
             items is an array of objects with keys:
             question, answerHints, tags.
             question and answerHints must be English.
+            answerHints is an array of strings; each string is one spoken-style talking point (often 2–4 sentences).
+            CRITICAL — variable structure, not a template:
+            The number of answerHints entries MUST differ by question and by topic depth.
+            Do NOT use a fixed bullet count (never default to exactly 4, 5, or 6 for every item).
+            Narrow or factual questions: fewer, deeper bullets (often 2–4) may be enough.
+            Broad, design, or multi-part questions: more bullets when the topic genuinely splits into many distinct points (e.g. 7–12+).
+            Within one response, vary counts across items so the batch does not look templated.
+            Never pad with empty, duplicate, or filler bullets just to reach a count.
             """;
 
     private final DeepseekChatService deepseekChatService;
@@ -47,6 +55,10 @@ public class InterviewQuestionService {
                 category: %s
                 level: %s
                 focus stack: Angular + Java interview expectations, but code practice project stack is Vue + Spring Boot.
+
+                For each question, choose answerHints length by substance only:
+                if the question is tight (definition, one API, one behavior), keep bullets few and rich;
+                if it spans design, trade-offs, failure modes, and examples, use more bullets only where each adds a new idea.
                 """.formatted(request.count(), request.keyword(), request.category(), request.level());
 
         String content = deepseekChatService.chatJson(SYSTEM_PROMPT, userPrompt);
@@ -62,8 +74,8 @@ public class InterviewQuestionService {
                             queryId,
                             request.appId(),
                             aiItem.path("question").asText(""),
-                            readStringList(aiItem.path("answerHints")),
-                            readStringList(aiItem.path("tags")),
+                            readNonEmptyStringList(aiItem.path("answerHints")),
+                            readNonEmptyStringList(aiItem.path("tags")),
                             false,
                             Instant.now()
                     ));
@@ -114,5 +126,16 @@ public class InterviewQuestionService {
         }
         node.forEach(entry -> result.add(entry.asText("")));
         return result;
+    }
+
+    private List<String> readNonEmptyStringList(JsonNode node) {
+        List<String> raw = readStringList(node);
+        List<String> out = new ArrayList<>();
+        for (String s : raw) {
+            if (s != null && !s.isBlank()) {
+                out.add(s.trim());
+            }
+        }
+        return out;
     }
 }

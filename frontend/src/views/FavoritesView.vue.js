@@ -37,31 +37,54 @@ debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
 let __VLS_components;
 let __VLS_directives;
+/** @type {__VLS_StyleScopedClasses['hit']} */ ;
+/** @type {__VLS_StyleScopedClasses['hints']} */ ;
+// CSS variable injection 
+// CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.section, __VLS_intrinsicElements.section)({
     ...{ class: "card" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (__VLS_ctx.load) },
+    type: "button",
 });
 if (__VLS_ctx.errorMessage) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-        ...{ style: {} },
+        ...{ class: "error" },
     });
     (__VLS_ctx.errorMessage);
 }
-__VLS_asFunctionalElement(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
+    ...{ class: "hit-list" },
+});
 for (const [item] of __VLS_getVForSourceType((__VLS_ctx.items))) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
         key: (item.questionId),
-        ...{ style: {} },
+        ...{ class: "hit" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+        ...{ class: "hit-question" },
+    });
     (item.question);
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({});
-    for (const [hint] of __VLS_getVForSourceType((item.answerHints))) {
+    if (item.detailAnswer && item.detailAnswer.trim()) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({
+            ...{ class: "subhead" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "detail-body" },
+        });
+        (item.detailAnswer);
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({
+        ...{ class: "subhead" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
+        ...{ class: "hints" },
+    });
+    for (const [hint, idx] of __VLS_getVForSourceType((item.answerHints))) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
-            key: (hint),
+            key: (`${item.questionId}-hint-${idx}`),
         });
         (hint);
     }
@@ -69,10 +92,19 @@ for (const [item] of __VLS_getVForSourceType((__VLS_ctx.items))) {
         ...{ onClick: (...[$event]) => {
                 __VLS_ctx.removeFromFavorites(item.questionId);
             } },
+        type: "button",
         ...{ class: "danger" },
     });
 }
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['error']} */ ;
+/** @type {__VLS_StyleScopedClasses['hit-list']} */ ;
+/** @type {__VLS_StyleScopedClasses['hit']} */ ;
+/** @type {__VLS_StyleScopedClasses['hit-question']} */ ;
+/** @type {__VLS_StyleScopedClasses['subhead']} */ ;
+/** @type {__VLS_StyleScopedClasses['detail-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['subhead']} */ ;
+/** @type {__VLS_StyleScopedClasses['hints']} */ ;
 /** @type {__VLS_StyleScopedClasses['danger']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
