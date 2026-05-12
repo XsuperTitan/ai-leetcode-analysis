@@ -58,6 +58,10 @@ export async function getFavorites(appId) {
     });
     return unwrap(resp.data);
 }
+export async function generateInterviewCheatSheet(payload) {
+    const resp = await client.post("/interview-questions/cheat-sheet", payload);
+    return unwrap(resp.data);
+}
 function unwrap(response) {
     if (response.code !== 0) {
         throw new Error(response.message || "Request failed");

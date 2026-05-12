@@ -2,6 +2,7 @@ import axios from "axios";
 import type {
   ApiResponse,
   DiagramUpsertRequest,
+  CheatSheetResponse,
   InterviewQuestionItem,
   InterviewSearchRequest,
   InterviewSearchResult,
@@ -79,6 +80,11 @@ export async function getFavorites(appId: string): Promise<InterviewQuestionItem
   const resp = await client.get<ApiResponse<InterviewQuestionItem[]>>("/interview-questions/favorites", {
     params: { appId }
   });
+  return unwrap(resp.data);
+}
+
+export async function generateInterviewCheatSheet(payload: { appId: string }): Promise<CheatSheetResponse> {
+  const resp = await client.post<ApiResponse<CheatSheetResponse>>("/interview-questions/cheat-sheet", payload);
   return unwrap(resp.data);
 }
 

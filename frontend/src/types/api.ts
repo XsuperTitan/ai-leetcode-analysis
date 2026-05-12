@@ -98,3 +98,8 @@ export interface InterviewSearchResult {
   queryId: string;
   items: InterviewQuestionItem[];
 }
+
+export interface CheatSheetResponse {
+  markdown: string;
+  favoriteCount: number;
+}

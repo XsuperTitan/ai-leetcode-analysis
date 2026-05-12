@@ -1,6 +1,8 @@
 package com.aicoding.analysis.controller;
 
 import com.aicoding.analysis.model.ApiResponse;
+import com.aicoding.analysis.model.interview.CheatSheetRequest;
+import com.aicoding.analysis.model.interview.CheatSheetResponse;
 import com.aicoding.analysis.model.interview.InterviewQuestionItem;
 import com.aicoding.analysis.model.interview.InterviewSearchRequest;
 import com.aicoding.analysis.model.interview.InterviewSearchResult;
@@ -55,5 +57,10 @@ public class InterviewQuestionController {
     @GetMapping("/favorites")
     public ApiResponse<List<InterviewQuestionItem>> favorites(@RequestParam @NotBlank String appId) {
         return ApiResponse.ok(interviewQuestionService.favorites(appId));
+    }
+
+    @PostMapping("/cheat-sheet")
+    public ApiResponse<CheatSheetResponse> cheatSheet(@Valid @RequestBody CheatSheetRequest request) {
+        return ApiResponse.ok(interviewQuestionService.generateCheatSheetFromFavorites(request.appId()));
     }
 }
