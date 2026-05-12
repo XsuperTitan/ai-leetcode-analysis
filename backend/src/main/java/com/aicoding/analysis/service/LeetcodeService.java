@@ -3,6 +3,7 @@ package com.aicoding.analysis.service;
 import com.aicoding.analysis.model.leetcode.LeetcodeAnalysisItem;
 import com.aicoding.analysis.model.leetcode.LeetcodeAnalyzeRequest;
 import com.aicoding.analysis.model.leetcode.LeetcodeAlternativeSolution;
+import com.aicoding.analysis.model.leetcode.LeetcodeCheatSheetResponse;
 import com.aicoding.analysis.repository.LeetcodeAnalysisRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,11 +11,27 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.UUID;
 
 @Service
 public class LeetcodeService {
+
+    private static final String CHEAT_SHEET_SYSTEM_PROMPT = """
+            You build ONE GitHub-flavored Markdown cheat sheet from several saved LeetCode-style analyses.
+            Return JSON only with a single key: markdown.
+            The markdown value is the full document (English).
+            For each problem section:
+            - Use ## with the problem title, then bullets for difficulty, language, time/space complexity.
+            - Give a **short** interview-style explanation (tight bullets or one short paragraph). Compress long prose
+              from the source, but do not drop algorithmic ideas that matter for correctness or the given code.
+            - List **key points** as a compact bullet list (merge or shorten wording; keep every distinct idea).
+            - Include the **main solution source code in full** inside a fenced code block with the correct language tag.
+              Every line of the main solution must appear exactly as provided — never truncate, omit, or "compress" code.
+            - For each alternative approach provided in the source, repeat: short explanation + **full** code in its own fenced block.
+            - Do not invent code; only reorganize and narrate around the supplied solutions.
+            """;
 
     private static final String SYSTEM_PROMPT = """
             You are a senior coding interview coach.
@@ -155,6 +172,111 @@ public class LeetcodeService {
             return item.markdownContent();
         }
         return buildMarkdown(item);
+    }
+
+    public LeetcodeCheatSheetResponse generateCheatSheetFromAnalyses(String appId, List<String> analysisIds) {
+        if (analysisIds == null || analysisIds.isEmpty()) {
+            throw new IllegalArgumentException("Select at least one recent analysis.");
+        }
+        LinkedHashSet<String> unique = new LinkedHashSet<>();
+        for (String id : analysisIds) {
+            if (id != null && !id.isBlank()) {
+                unique.add(id.trim());
+            }
+        }
+        if (unique.isEmpty()) {
+            throw new IllegalArgumentException("Select at least one recent analysis.");
+        }
+        List<LeetcodeAnalysisItem> items = new ArrayList<>();
+        for (String analysisId : unique) {
+            LeetcodeAnalysisItem item = leetcodeAnalysisRepository.getByAnalysisId(analysisId);
+            if (!appId.equals(item.appId())) {
+                throw new IllegalArgumentException("Analysis " + analysisId + " does not belong to this app.");
+            }
+            items.add(item);
+        }
+        String bundle = buildCheatSheetSourceBundle(items);
+        int maxChars = 120_000;
+        if (bundle.length() > maxChars) {
+            bundle = bundle.substring(0, maxChars) + "\n\n(Bundle truncated: select fewer analyses or items with less text.)\n";
+        }
+        String userPrompt = """
+                Build the final cheat sheet from the following selected analyses only.
+                Follow the system rules: short explanations and key points, but every solution block must remain complete.
+
+                --- BEGIN SELECTED ANALYSES ---
+                %s
+                --- END SELECTED ANALYSES ---
+                """.formatted(bundle);
+
+        String content = deepseekChatService.chatJson(CHEAT_SHEET_SYSTEM_PROMPT, userPrompt);
+        try {
+            JsonNode root = objectMapper.readTree(content);
+            String markdown = root.path("markdown").asText("").trim();
+            if (markdown.isBlank()) {
+                throw new IllegalStateException("Model returned empty markdown");
+            }
+            return new LeetcodeCheatSheetResponse(markdown, items.size());
+        } catch (IllegalStateException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to parse cheat sheet JSON: " + ex.getMessage(), ex);
+        }
+    }
+
+    private static String buildCheatSheetSourceBundle(List<LeetcodeAnalysisItem> items) {
+        StringBuilder sb = new StringBuilder();
+        int n = 1;
+        for (LeetcodeAnalysisItem item : items) {
+            sb.append("### Analysis ").append(n++).append(" — ").append(item.title()).append("\n");
+            sb.append("analysisId: ").append(item.analysisId()).append("\n");
+            sb.append("language: ").append(item.language()).append(" | difficulty: ").append(item.difficulty()).append("\n");
+            sb.append("time: ").append(nullToEmpty(item.timeComplexity()))
+                    .append(" | space: ").append(nullToEmpty(item.spaceComplexity())).append("\n\n");
+            sb.append("KEY_POINTS_JSON:\n");
+            if (item.keyPoints() != null) {
+                for (String kp : item.keyPoints()) {
+                    if (kp != null && !kp.isBlank()) {
+                        sb.append("- ").append(kp.trim().replace("\n", " ")).append("\n");
+                    }
+                }
+            }
+            sb.append("\nTHINKING (may be long; compress in output, do not drop ideas needed for the code):\n");
+            sb.append(clip(item.thinking(), 4_000)).append("\n\n");
+            sb.append("MAIN_SOLUTION_CODE (must appear verbatim in final markdown):\n```")
+                    .append(item.language()).append("\n")
+                    .append(item.solutionCode() == null ? "" : item.solutionCode())
+                    .append("\n```\n\n");
+            if (item.alternativeSolutions() != null && !item.alternativeSolutions().isEmpty()) {
+                int a = 1;
+                for (LeetcodeAlternativeSolution alt : item.alternativeSolutions()) {
+                    sb.append("ALT_").append(a++).append(" name: ").append(alt.approachName()).append("\n");
+                    sb.append("time: ").append(nullToEmpty(alt.timeComplexity()))
+                            .append(" | space: ").append(nullToEmpty(alt.spaceComplexity())).append("\n");
+                    sb.append("thinking (compress in output):\n").append(clip(alt.thinking(), 2_000)).append("\n");
+                    sb.append("ALT_SOLUTION_CODE (verbatim):\n```")
+                            .append(item.language()).append("\n")
+                            .append(alt.solutionCode() == null ? "" : alt.solutionCode())
+                            .append("\n```\n\n");
+                }
+            }
+            sb.append("\n---\n\n");
+        }
+        return sb.toString();
+    }
+
+    private static String nullToEmpty(String s) {
+        return s == null ? "" : s;
+    }
+
+    private static String clip(String s, int max) {
+        if (s == null) {
+            return "";
+        }
+        if (s.length() <= max) {
+            return s;
+        }
+        return s.substring(0, max) + "\n...(truncated in bundle only; full solution code is provided separately.)";
     }
 
     private String buildMarkdown(LeetcodeAnalysisItem item) {

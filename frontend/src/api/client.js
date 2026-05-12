@@ -6,9 +6,9 @@ export async function analyzeLeetcode(payload) {
     const resp = await client.post("/leetcode/analyze", payload);
     return unwrap(resp.data);
 }
-export async function listLeetcode(keyword = "") {
+export async function listLeetcode(keyword = "", page = 0, size = 10) {
     const resp = await client.get("/leetcode/analyses", {
-        params: { keyword, page: 0, size: 10 }
+        params: { keyword, page, size }
     });
     return unwrap(resp.data);
 }
@@ -25,6 +25,10 @@ export async function downloadLeetcodeMarkdown(analysisId) {
 export async function deleteLeetcodeAnalysis(analysisId) {
     const resp = await client.delete(`/leetcode/analyses/${analysisId}`);
     unwrap(resp.data);
+}
+export async function generateLeetcodeCheatSheet(payload) {
+    const resp = await client.post("/leetcode/cheat-sheet", payload);
+    return unwrap(resp.data);
 }
 export async function createDiagram(payload) {
     const resp = await client.post("/system-design/diagrams", payload);

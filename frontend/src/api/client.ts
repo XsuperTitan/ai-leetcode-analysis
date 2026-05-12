@@ -8,6 +8,8 @@ import type {
   InterviewSearchResult,
   LeetcodeAnalysisItem,
   LeetcodeAnalyzeRequest,
+  LeetcodeCheatSheetRequest,
+  LeetcodeCheatSheetResponse,
   SystemDesignDiagram
 } from "../types/api";
 
@@ -20,9 +22,9 @@ export async function analyzeLeetcode(payload: LeetcodeAnalyzeRequest): Promise<
   return unwrap(resp.data);
 }
 
-export async function listLeetcode(keyword = ""): Promise<LeetcodeAnalysisItem[]> {
+export async function listLeetcode(keyword = "", page = 0, size = 10): Promise<LeetcodeAnalysisItem[]> {
   const resp = await client.get<ApiResponse<LeetcodeAnalysisItem[]>>("/leetcode/analyses", {
-    params: { keyword, page: 0, size: 10 }
+    params: { keyword, page, size }
   });
   return unwrap(resp.data);
 }
@@ -42,6 +44,11 @@ export async function downloadLeetcodeMarkdown(analysisId: string): Promise<Blob
 export async function deleteLeetcodeAnalysis(analysisId: string): Promise<void> {
   const resp = await client.delete<ApiResponse<{ status: string }>>(`/leetcode/analyses/${analysisId}`);
   unwrap(resp.data);
+}
+
+export async function generateLeetcodeCheatSheet(payload: LeetcodeCheatSheetRequest): Promise<LeetcodeCheatSheetResponse> {
+  const resp = await client.post<ApiResponse<LeetcodeCheatSheetResponse>>("/leetcode/cheat-sheet", payload);
+  return unwrap(resp.data);
 }
 
 export async function createDiagram(payload: DiagramUpsertRequest): Promise<SystemDesignDiagram> {

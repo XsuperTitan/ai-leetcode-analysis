@@ -39,6 +39,16 @@ export interface LeetcodeAlternativeSolution {
   spaceComplexity: string;
 }
 
+export interface LeetcodeCheatSheetRequest {
+  appId: string;
+  analysisIds: string[];
+}
+
+export interface LeetcodeCheatSheetResponse {
+  markdown: string;
+  analysisCount: number;
+}
+
 export interface DiagramNode {
   id: string;
   type: string;

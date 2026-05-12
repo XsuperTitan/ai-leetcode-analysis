@@ -3,6 +3,8 @@ package com.aicoding.analysis.controller;
 import com.aicoding.analysis.model.ApiResponse;
 import com.aicoding.analysis.model.leetcode.LeetcodeAnalysisItem;
 import com.aicoding.analysis.model.leetcode.LeetcodeAnalyzeRequest;
+import com.aicoding.analysis.model.leetcode.LeetcodeCheatSheetRequest;
+import com.aicoding.analysis.model.leetcode.LeetcodeCheatSheetResponse;
 import com.aicoding.analysis.service.LeetcodeService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
@@ -34,6 +36,14 @@ public class LeetcodeController {
     @PostMapping("/analyze")
     public ApiResponse<LeetcodeAnalysisItem> analyze(@Valid @RequestBody LeetcodeAnalyzeRequest request) {
         return ApiResponse.ok(leetcodeService.analyze(request));
+    }
+
+    @PostMapping("/cheat-sheet")
+    public ApiResponse<LeetcodeCheatSheetResponse> cheatSheet(@Valid @RequestBody LeetcodeCheatSheetRequest request) {
+        return ApiResponse.ok(leetcodeService.generateCheatSheetFromAnalyses(
+                request.appId(),
+                request.analysisIds()
+        ));
     }
 
     @GetMapping("/analyses")
