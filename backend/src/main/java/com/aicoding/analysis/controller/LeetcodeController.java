@@ -42,7 +42,8 @@ public class LeetcodeController {
     public ApiResponse<LeetcodeCheatSheetResponse> cheatSheet(@Valid @RequestBody LeetcodeCheatSheetRequest request) {
         return ApiResponse.ok(leetcodeService.generateCheatSheetFromAnalyses(
                 request.appId(),
-                request.analysisIds()
+                request.analysisIds(),
+                request.lang()
         ));
     }
 

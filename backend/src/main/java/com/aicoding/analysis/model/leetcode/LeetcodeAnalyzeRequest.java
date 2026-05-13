@@ -10,10 +10,12 @@ public record LeetcodeAnalyzeRequest(
         String description,
         List<String> constraints,
         @NotBlank(message = "language must not be empty") String language,
-        @NotBlank(message = "difficulty must not be empty") String difficulty
+        @NotBlank(message = "difficulty must not be empty") String difficulty,
+        String lang
 ) {
     public LeetcodeAnalyzeRequest {
         description = description == null ? "" : description.trim();
         constraints = constraints == null ? List.of() : List.copyOf(constraints);
+        lang = (lang == null || lang.isBlank()) ? "en" : lang.trim().toLowerCase();
     }
 }

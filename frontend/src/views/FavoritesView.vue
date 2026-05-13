@@ -32,6 +32,10 @@
         <div class="panel-head">
           <h3>Cheat sheet review</h3>
           <div class="panel-actions">
+            <select v-model="lang" class="lang-select">
+              <option value="en">English</option>
+              <option value="zh">中文</option>
+            </select>
             <button
               type="button"
               :disabled="generating || items.length === 0"
@@ -71,6 +75,7 @@ import type { InterviewQuestionItem } from "../types/api";
 const appStore = useAppStore();
 const interviewStore = useInterviewStore();
 const items = ref<InterviewQuestionItem[]>([]);
+const lang = ref("en");
 const errorMessage = ref("");
 const generating = ref(false);
 const cheatSheetMarkdown = ref("");
@@ -118,7 +123,7 @@ async function generateCheatSheet() {
   generating.value = true;
   cheatSheetMarkdown.value = "";
   try {
-    const resp = await generateInterviewCheatSheet({ appId: appStore.appId });
+    const resp = await generateInterviewCheatSheet({ appId: appStore.appId, lang: lang.value });
     cheatSheetMarkdown.value = resp.markdown;
     cheatSheetSourceCount.value = resp.favoriteCount;
   } catch (error: unknown) {
@@ -272,6 +277,15 @@ function extractErrorMessage(error: unknown): string {
 button.small {
   padding: 4px 10px;
   font-size: 12px;
+}
+
+.lang-select {
+  font-size: 13px;
+  padding: 4px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
 }
 
 .meta {

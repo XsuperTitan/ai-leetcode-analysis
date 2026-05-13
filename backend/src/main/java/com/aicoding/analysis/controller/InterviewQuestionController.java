@@ -61,6 +61,6 @@ public class InterviewQuestionController {
 
     @PostMapping("/cheat-sheet")
     public ApiResponse<CheatSheetResponse> cheatSheet(@Valid @RequestBody CheatSheetRequest request) {
-        return ApiResponse.ok(interviewQuestionService.generateCheatSheetFromFavorites(request.appId()));
+        return ApiResponse.ok(interviewQuestionService.generateCheatSheetFromFavorites(request.appId(), request.lang()));
     }
 }

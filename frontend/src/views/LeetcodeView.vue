@@ -13,6 +13,10 @@
         <option value="medium">Medium</option>
         <option value="hard">Hard</option>
       </select>
+      <select v-model="lang">
+        <option value="en">English</option>
+        <option value="zh">中文</option>
+      </select>
     </div>
     <textarea v-model="description" placeholder="Problem description (optional, title-only is supported)"></textarea>
     <div class="row">
@@ -123,6 +127,7 @@ import { useLeetcodeStore } from "../stores/leetcode";
 const appStore = useAppStore();
 const leetcodeStore = useLeetcodeStore();
 const { title, description, language, difficulty, constraintsInput, result, history } = storeToRefs(leetcodeStore);
+const lang = ref("en");
 const loading = ref(false);
 const validationMessage = ref("");
 const errorMessage = ref("");
@@ -178,7 +183,8 @@ async function submit() {
       description: description.value,
       constraints,
       language: language.value,
-      difficulty: difficulty.value
+      difficulty: difficulty.value,
+      lang: lang.value
     });
     leetcodeStore.setResult(result.value);
     await loadHistory();
@@ -269,7 +275,8 @@ async function generateCheatSheet() {
   try {
     const resp = await generateLeetcodeCheatSheet({
       appId: appStore.appId,
-      analysisIds: [...selectedIds.value]
+      analysisIds: [...selectedIds.value],
+      lang: lang.value
     });
     cheatMarkdown.value = resp.markdown;
     cheatIdsAtGenerate.value = [...selectedIds.value];

@@ -18,7 +18,7 @@ import java.util.UUID;
 @Service
 public class LeetcodeService {
 
-    private static final String CHEAT_SHEET_SYSTEM_PROMPT = """
+    private static final String CHEAT_SHEET_SYSTEM_PROMPT_EN = """
             You build ONE GitHub-flavored Markdown cheat sheet from several saved LeetCode-style analyses.
             Return JSON only with a single key: markdown.
             The markdown value is the full document (English).
@@ -33,7 +33,22 @@ public class LeetcodeService {
             - Do not invent code; only reorganize and narrate around the supplied solutions.
             """;
 
-    private static final String SYSTEM_PROMPT = """
+    private static final String CHEAT_SHEET_SYSTEM_PROMPT_ZH = """
+            你根据多个已保存的 LeetCode 风格分析，构建一份 GitHub 风格的 Markdown 速查表。
+            仅返回 JSON，包含一个键：markdown。
+            markdown 的值是完整的文档（中文）。
+            对于每道题的部分：
+            - 使用 ## 加题目标题，然后用列表标注难度、语言、时间/空间复杂度。
+            - 给出**简短的**面试风格解释（紧凑的要点或一个短段落）。压缩冗长的描述，
+              但不要删除对正确性或给定代码重要的算法思想。
+            - 将**关键点**列为紧凑的要点列表（合并或缩短措辞；保留每个不同的想法）。
+            - 在带有正确语言标签的围栏代码块中包含**完整的**主要解决方案源代码。
+              主要解决方案的每一行必须与提供的一模一样——永远不要截断、省略或"压缩"代码。
+            - 对于源中提供的每个替代方法，重复：简短解释 + 在自己的围栏块中的**完整**代码。
+            - 不要编造代码；只围绕提供的解决方案重新组织和叙述。
+            """;
+
+    private static final String SYSTEM_PROMPT_EN = """
             You are a senior coding interview coach.
             Return JSON only with keys:
             thinking, solutionCode, timeComplexity, spaceComplexity, keyPoints, alternativeSolutions.
@@ -52,6 +67,26 @@ public class LeetcodeService {
             approachName, thinking, solutionCode, timeComplexity, spaceComplexity.
             """;
 
+    private static final String SYSTEM_PROMPT_ZH = """
+            你是一位资深编程面试教练。
+            仅返回 JSON，包含以下键：
+            thinking, solutionCode, timeComplexity, spaceComplexity, keyPoints, alternativeSolutions。
+            thinking 必须非常详细但对完全的初学者来说足够简单，使用通俗易懂的语言。
+            在 thinking 中，使用以下精确结构：
+            1) 用简单的话描述问题
+            2) 直觉（生活中的类比）
+            3) 逐步算法
+            4) 用示例输入进行手动演算
+            5) 为什么这样做是正确的
+            6) 边界情况
+            7) 面试口述模板
+            keyPoints 必须是一个简洁的面试就绪要点数组。
+            alternativeSolutions 必须是一个至少包含 2 种不同方法的数组。
+            每个条目必须包含：
+            approachName, thinking, solutionCode, timeComplexity, spaceComplexity。
+            所有文本内容必须使用中文输出，代码保持原样，代码注释可用中文。
+            """;
+
     private final DeepseekChatService deepseekChatService;
     private final ObjectMapper objectMapper;
     private final LeetcodeAnalysisRepository leetcodeAnalysisRepository;
@@ -67,7 +102,10 @@ public class LeetcodeService {
     }
 
     public LeetcodeAnalysisItem analyze(LeetcodeAnalyzeRequest request) {
-        String userPrompt = """
+        boolean isZh = "zh".equals(request.lang());
+        String systemPrompt = isZh ? SYSTEM_PROMPT_ZH : SYSTEM_PROMPT_EN;
+
+        String userPromptEn = """
                 Solve this coding problem and explain in interview style.
                 language: %s
                 difficulty: %s
@@ -77,7 +115,21 @@ public class LeetcodeService {
                 If description is empty, infer the canonical LeetCode problem from title and clearly state assumptions.
                 Provide the main solution and at least 2 alternative solutions.
                 Keep the main explanation very beginner-friendly, as if teaching someone with no algorithm background.
-                """.formatted(
+                """;
+
+        String userPromptZh = """
+                解决这道编程题并用面试风格解释。
+                语言: %s
+                难度: %s
+                题目: %s
+                描述: %s
+                约束: %s
+                如果描述为空，根据题目推断标准的 LeetCode 题目并明确说明假设。
+                提供主要解决方案和至少 2 种替代方案。
+                主要解释要对初学者非常友好，就像教一个没有算法基础的人一样。
+                """;
+
+        String userPrompt = (isZh ? userPromptZh : userPromptEn).formatted(
                 request.language(),
                 request.difficulty(),
                 request.title(),
@@ -85,7 +137,7 @@ public class LeetcodeService {
                 request.constraints()
         );
 
-        String content = deepseekChatService.chatJson(SYSTEM_PROMPT, userPrompt);
+        String content = deepseekChatService.chatJson(systemPrompt, userPrompt);
         try {
             JsonNode node = objectMapper.readTree(content);
             LeetcodeAnalysisItem item = new LeetcodeAnalysisItem(
@@ -174,7 +226,7 @@ public class LeetcodeService {
         return buildMarkdown(item);
     }
 
-    public LeetcodeCheatSheetResponse generateCheatSheetFromAnalyses(String appId, List<String> analysisIds) {
+    public LeetcodeCheatSheetResponse generateCheatSheetFromAnalyses(String appId, List<String> analysisIds, String lang) {
         if (analysisIds == null || analysisIds.isEmpty()) {
             throw new IllegalArgumentException("Select at least one recent analysis.");
         }
@@ -200,16 +252,30 @@ public class LeetcodeService {
         if (bundle.length() > maxChars) {
             bundle = bundle.substring(0, maxChars) + "\n\n(Bundle truncated: select fewer analyses or items with less text.)\n";
         }
-        String userPrompt = """
+        boolean isZh = "zh".equals(lang);
+        String cheatSheetSystemPrompt = isZh ? CHEAT_SHEET_SYSTEM_PROMPT_ZH : CHEAT_SHEET_SYSTEM_PROMPT_EN;
+
+        String userPromptEn = """
                 Build the final cheat sheet from the following selected analyses only.
                 Follow the system rules: short explanations and key points, but every solution block must remain complete.
 
                 --- BEGIN SELECTED ANALYSES ---
                 %s
                 --- END SELECTED ANALYSES ---
-                """.formatted(bundle);
+                """;
 
-        String content = deepseekChatService.chatJson(CHEAT_SHEET_SYSTEM_PROMPT, userPrompt);
+        String userPromptZh = """
+                根据以下选定的分析构建最终的速查表。
+                遵循系统规则：简短的解释和关键点，但每个解决方案代码块必须保持完整。
+
+                --- 选定分析开始 ---
+                %s
+                --- 选定分析结束 ---
+                """;
+
+        String userPrompt = (isZh ? userPromptZh : userPromptEn).formatted(bundle);
+
+        String content = deepseekChatService.chatJson(cheatSheetSystemPrompt, userPrompt);
         try {
             JsonNode root = objectMapper.readTree(content);
             String markdown = root.path("markdown").asText("").trim();

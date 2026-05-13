@@ -14,6 +14,10 @@
         <option value="middle">Middle</option>
         <option value="senior">Senior</option>
       </select>
+      <select v-model="lang">
+        <option value="en">English</option>
+        <option value="zh">中文</option>
+      </select>
       <button @click="search" :disabled="loading">{{ loading ? "Loading..." : "Search" }}</button>
     </div>
     <p v-if="errorMessage" style="color: #dc2626; margin: 0;">{{ errorMessage }}</p>
@@ -44,6 +48,7 @@ import { useInterviewStore } from "../stores/interview";
 const appStore = useAppStore();
 const interviewStore = useInterviewStore();
 const { keyword, category, level, result } = storeToRefs(interviewStore);
+const lang = ref("en");
 const loading = ref(false);
 const errorMessage = ref("");
 
@@ -60,7 +65,8 @@ async function search() {
       keyword: keyword.value,
       category: category.value,
       level: level.value,
-      count: 8
+      count: 8,
+      lang: lang.value
     });
     interviewStore.setResult(resp.items);
   } catch (error: unknown) {

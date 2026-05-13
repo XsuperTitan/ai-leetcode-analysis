@@ -9,6 +9,10 @@ public record InterviewSearchRequest(
         @NotBlank String keyword,
         @NotBlank String category,
         @NotBlank String level,
-        @Min(1) @Max(20) int count
+        @Min(1) @Max(20) int count,
+        String lang
 ) {
+    public InterviewSearchRequest {
+        lang = (lang == null || lang.isBlank()) ? "en" : lang.trim().toLowerCase();
+    }
 }

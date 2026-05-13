@@ -90,7 +90,7 @@ export async function getFavorites(appId: string): Promise<InterviewQuestionItem
   return unwrap(resp.data);
 }
 
-export async function generateInterviewCheatSheet(payload: { appId: string }): Promise<CheatSheetResponse> {
+export async function generateInterviewCheatSheet(payload: { appId: string; lang?: string }): Promise<CheatSheetResponse> {
   const resp = await client.post<ApiResponse<CheatSheetResponse>>("/interview-questions/cheat-sheet", payload);
   return unwrap(resp.data);
 }

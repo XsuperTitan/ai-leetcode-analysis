@@ -8,6 +8,10 @@ import java.util.List;
 
 public record LeetcodeCheatSheetRequest(
         @NotBlank String appId,
-        @NotEmpty @Size(max = 25) List<@NotBlank String> analysisIds
+        @NotEmpty @Size(max = 25) List<@NotBlank String> analysisIds,
+        String lang
 ) {
+    public LeetcodeCheatSheetRequest {
+        lang = (lang == null || lang.isBlank()) ? "en" : lang.trim().toLowerCase();
+    }
 }

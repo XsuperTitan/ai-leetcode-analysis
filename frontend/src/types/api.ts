@@ -11,6 +11,7 @@ export interface LeetcodeAnalyzeRequest {
   constraints: string[];
   language: string;
   difficulty: string;
+  lang?: string;
 }
 
 export interface LeetcodeAnalysisItem {
@@ -42,6 +43,7 @@ export interface LeetcodeAlternativeSolution {
 export interface LeetcodeCheatSheetRequest {
   appId: string;
   analysisIds: string[];
+  lang?: string;
 }
 
 export interface LeetcodeCheatSheetResponse {
@@ -91,6 +93,7 @@ export interface InterviewSearchRequest {
   category: string;
   level: string;
   count: number;
+  lang?: string;
 }
 
 export interface InterviewQuestionItem {
