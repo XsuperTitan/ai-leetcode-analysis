@@ -5,6 +5,7 @@ import { useInterviewStore } from "../stores/interview";
 const appStore = useAppStore();
 const interviewStore = useInterviewStore();
 const items = ref([]);
+const lang = ref("en");
 const errorMessage = ref("");
 const generating = ref(false);
 const cheatSheetMarkdown = ref("");
@@ -50,7 +51,7 @@ async function generateCheatSheet() {
     generating.value = true;
     cheatSheetMarkdown.value = "";
     try {
-        const resp = await generateInterviewCheatSheet({ appId: appStore.appId });
+        const resp = await generateInterviewCheatSheet({ appId: appStore.appId, lang: lang.value });
         cheatSheetMarkdown.value = resp.markdown;
         cheatSheetSourceCount.value = resp.favoriteCount;
     }
@@ -172,6 +173,16 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "panel-actions" },
 });
+__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+    value: (__VLS_ctx.lang),
+    ...{ class: "lang-select" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: "en",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: "zh",
+});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (__VLS_ctx.generateCheatSheet) },
     type: "button",
@@ -228,6 +239,7 @@ else {
 /** @type {__VLS_StyleScopedClasses['panel-right']} */ ;
 /** @type {__VLS_StyleScopedClasses['panel-head']} */ ;
 /** @type {__VLS_StyleScopedClasses['panel-actions']} */ ;
+/** @type {__VLS_StyleScopedClasses['lang-select']} */ ;
 /** @type {__VLS_StyleScopedClasses['secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['meta']} */ ;
 /** @type {__VLS_StyleScopedClasses['stale-hint']} */ ;
@@ -239,6 +251,7 @@ const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
             items: items,
+            lang: lang,
             errorMessage: errorMessage,
             generating: generating,
             cheatSheetMarkdown: cheatSheetMarkdown,

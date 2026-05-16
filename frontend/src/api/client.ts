@@ -4,6 +4,7 @@ import type {
   DiagramUpsertRequest,
   CheatSheetResponse,
   InterviewQuestionItem,
+  InterviewRecordingReportResponse,
   InterviewSearchRequest,
   InterviewSearchResult,
   LeetcodeAnalysisItem,
@@ -92,6 +93,14 @@ export async function getFavorites(appId: string): Promise<InterviewQuestionItem
 
 export async function generateInterviewCheatSheet(payload: { appId: string; lang?: string }): Promise<CheatSheetResponse> {
   const resp = await client.post<ApiResponse<CheatSheetResponse>>("/interview-questions/cheat-sheet", payload);
+  return unwrap(resp.data);
+}
+
+export async function requestInterviewRecordingReport(file: File, appId: string): Promise<InterviewRecordingReportResponse> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("appId", appId);
+  const resp = await client.post<ApiResponse<InterviewRecordingReportResponse>>("/interview-recording/report", form);
   return unwrap(resp.data);
 }
 

@@ -116,3 +116,20 @@ export interface CheatSheetResponse {
   markdown: string;
   favoriteCount: number;
 }
+
+export interface InterviewQaPair {
+  question: string;
+  answer: string;
+  /** LLM summary of what the interviewer likely wanted to hear */
+  interviewerExpectedAnswer: string;
+}
+
+export interface InterviewRecordingReportResponse {
+  rawTranscript: string;
+  cleanedDialogue: string;
+  qaPairs: InterviewQaPair[];
+  summary: string;
+  obviousMistakes: string;
+  uncertainties: string[];
+  reportMarkdown: string;
+}

@@ -66,6 +66,13 @@ export async function generateInterviewCheatSheet(payload) {
     const resp = await client.post("/interview-questions/cheat-sheet", payload);
     return unwrap(resp.data);
 }
+export async function requestInterviewRecordingReport(file, appId) {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("appId", appId);
+    const resp = await client.post("/interview-recording/report", form);
+    return unwrap(resp.data);
+}
 function unwrap(response) {
     if (response.code !== 0) {
         throw new Error(response.message || "Request failed");

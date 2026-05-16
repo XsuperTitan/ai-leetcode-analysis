@@ -6,6 +6,7 @@ import { useInterviewStore } from "../stores/interview";
 const appStore = useAppStore();
 const interviewStore = useInterviewStore();
 const { keyword, category, level, result } = storeToRefs(interviewStore);
+const lang = ref("en");
 const loading = ref(false);
 const errorMessage = ref("");
 watch([keyword, category, level], () => {
@@ -20,7 +21,8 @@ async function search() {
             keyword: keyword.value,
             category: category.value,
             level: level.value,
-            count: 8
+            count: 8,
+            lang: lang.value
         });
         interviewStore.setResult(resp.items);
     }
@@ -97,6 +99,15 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElement
 __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
     value: "senior",
 });
+__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+    value: (__VLS_ctx.lang),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: "en",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: "zh",
+});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (__VLS_ctx.search) },
     disabled: (__VLS_ctx.loading),
@@ -159,6 +170,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             category: category,
             level: level,
             result: result,
+            lang: lang,
             loading: loading,
             errorMessage: errorMessage,
             search: search,

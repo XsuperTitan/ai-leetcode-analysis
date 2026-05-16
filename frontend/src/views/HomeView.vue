@@ -10,6 +10,36 @@
   </section>
 
   <section class="card">
+    <h2>Interview recording (MP3)</h2>
+    <p>Upload an interview MP3: speech-to-text, then AI generates a Markdown report (Q&amp;A, summary, obvious mistakes).</p>
+    <div class="row recording-row">
+      <input
+        type="file"
+        accept=".mp3,audio/mpeg"
+        :disabled="loading"
+        @change="onFileSelected"
+      />
+      <button type="button" :disabled="!selectedFile || loading" @click="submitRecording">
+        {{ loading ? "Processing…" : "Upload and generate report" }}
+      </button>
+    </div>
+    <small class="hint">MP3 only, max {{ (maxBytes / (1024 * 1024)).toFixed(0) }} MB. Uses current appId below.</small>
+    <p v-if="error" class="error">{{ error }}</p>
+
+    <template v-if="report">
+      <div class="row">
+        <button type="button" class="secondary" @click="downloadMarkdown">Download .md</button>
+      </div>
+      <details class="raw-details">
+        <summary>Original ASR transcript (for verification)</summary>
+        <pre class="transcript-pre">{{ report.rawTranscript }}</pre>
+      </details>
+      <h3>Report (Markdown)</h3>
+      <pre class="report-md">{{ report.reportMarkdown }}</pre>
+    </template>
+  </section>
+
+  <section class="card">
     <h3>App Settings</h3>
     <label>appId (must stay string)</label>
     <div class="row">
@@ -22,12 +52,117 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import { requestInterviewRecordingReport } from "../api/client";
+import type { InterviewRecordingReportResponse } from "../types/api";
 import { useAppStore } from "../stores/app";
 
 const appStore = useAppStore();
 const localAppId = ref(appStore.appId);
 
+const maxBytes = 30 * 1024 * 1024;
+const selectedFile = ref<File | null>(null);
+const loading = ref(false);
+const error = ref("");
+const report = ref<InterviewRecordingReportResponse | null>(null);
+
 function saveAppId() {
   appStore.setAppId(localAppId.value);
 }
+
+function onFileSelected(ev: Event) {
+  error.value = "";
+  report.value = null;
+  const input = ev.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) {
+    selectedFile.value = null;
+    return;
+  }
+  const name = file.name.toLowerCase();
+  if (!name.endsWith(".mp3")) {
+    error.value = "Please choose an .mp3 file.";
+    selectedFile.value = null;
+    input.value = "";
+    return;
+  }
+  if (file.size > maxBytes) {
+    error.value = `File is too large (max ${maxBytes} bytes).`;
+    selectedFile.value = null;
+    input.value = "";
+    return;
+  }
+  selectedFile.value = file;
+}
+
+async function submitRecording() {
+  const file = selectedFile.value;
+  if (!file) return;
+  loading.value = true;
+  error.value = "";
+  report.value = null;
+  try {
+    const appId = String(appStore.appId ?? "");
+    report.value = await requestInterviewRecordingReport(file, appId);
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "Request failed";
+  } finally {
+    loading.value = false;
+  }
+}
+
+function downloadMarkdown() {
+  const md = report.value?.reportMarkdown;
+  if (!md) return;
+  const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `interview-report-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.md`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 </script>
+
+<style scoped>
+.recording-row {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.recording-row input[type="file"] {
+  width: auto;
+  max-width: 100%;
+}
+
+.hint {
+  display: block;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.error {
+  color: #b91c1c;
+  margin-top: 8px;
+}
+
+.raw-details {
+  margin: 12px 0;
+}
+
+.transcript-pre,
+.report-md {
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 12px;
+  font-size: 13px;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.report-md {
+  max-height: 560px;
+}
+</style>

@@ -6,6 +6,7 @@ import { useLeetcodeStore } from "../stores/leetcode";
 const appStore = useAppStore();
 const leetcodeStore = useLeetcodeStore();
 const { title, description, language, difficulty, constraintsInput, result, history } = storeToRefs(leetcodeStore);
+const lang = ref("en");
 const loading = ref(false);
 const validationMessage = ref("");
 const errorMessage = ref("");
@@ -53,7 +54,8 @@ async function submit() {
             description: description.value,
             constraints,
             language: language.value,
-            difficulty: difficulty.value
+            difficulty: difficulty.value,
+            lang: lang.value
         });
         leetcodeStore.setResult(result.value);
         await loadHistory();
@@ -141,7 +143,8 @@ async function generateCheatSheet() {
     try {
         const resp = await generateLeetcodeCheatSheet({
             appId: appStore.appId,
-            analysisIds: [...selectedIds.value]
+            analysisIds: [...selectedIds.value],
+            lang: lang.value
         });
         cheatMarkdown.value = resp.markdown;
         cheatIdsAtGenerate.value = [...selectedIds.value];
@@ -231,6 +234,15 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElement
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
     value: "hard",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+    value: (__VLS_ctx.lang),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: "en",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: "zh",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.textarea, __VLS_intrinsicElements.textarea)({
     value: (__VLS_ctx.description),
@@ -497,6 +509,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             constraintsInput: constraintsInput,
             result: result,
             history: history,
+            lang: lang,
             loading: loading,
             validationMessage: validationMessage,
             errorMessage: errorMessage,
